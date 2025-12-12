@@ -305,6 +305,45 @@ const emitLowStockAlert = (data) => {
   });
 };
 
+// ============================================
+// Incident Events
+// ============================================
+
+/**
+ * Emit incident created event
+ * @param {Object} data - { incidentId, type, orderNumber, itemName, reportedBy }
+ */
+const emitIncidentCreated = (data) => {
+  safeEmit((io) => {
+    const event = {
+      type: 'INCIDENT_CREATED',
+      data,
+      timestamp: new Date().toISOString()
+    };
+
+    // Notify managers and admin
+    io.to('admin').emit('incident:created', event);
+    io.to('staff').emit('incident:created', event);
+  });
+};
+
+/**
+ * Emit incident resolved event
+ * @param {Object} data - { incidentId, resolvedBy }
+ */
+const emitIncidentResolved = (data) => {
+  safeEmit((io) => {
+    const event = {
+      type: 'INCIDENT_RESOLVED',
+      data,
+      timestamp: new Date().toISOString()
+    };
+
+    io.to('admin').emit('incident:resolved', event);
+    io.to('staff').emit('incident:resolved', event);
+  });
+};
+
 module.exports = {
   // Order events
   emitOrderCreated,
@@ -323,5 +362,8 @@ module.exports = {
   emitPaymentReceived,
   // Notification events
   emitNotificationToUser,
-  emitLowStockAlert
+  emitLowStockAlert,
+  // Incident events
+  emitIncidentCreated,
+  emitIncidentResolved
 };

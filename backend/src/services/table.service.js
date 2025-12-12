@@ -634,6 +634,261 @@ const formatBill = (bill) => {
   };
 };
 
+// ============================================
+// Multi-User Table Session Functions (Phase 16)
+// Requirements: 23.1, 23.2, 23.3, 23.4, 23.5
+// ============================================
+
+/**
+ * Get all users in a table session
+ * @param {string} tableId - Table ID
+ * @returns {Promise<Array>} List of users in the session
+ */
+const getTableSessionUsers = async (tableId) => {
+  const sessions = await TableSession.find({
+    table: tableId,
+    isActive: true
+  })
+    .populate('user', 'name email')
+    .populate('bill', 'billNumber totalAmount')
+    .lean();
+
+  return sessions.map(session => ({
+    sessionId: session._id,
+    user: session.user ? {
+      id: session.user._id,
+      name: session.user.name,
+      email: session.user.email
+    } : null,
+    joinedAt: session.joinedAt,
+    bill: session.bill ? {
+      id: session.bill._id,
+      billNumber: session.bill.billNumber
+    } : null
+  }));
+};
+
+/**
+ * Get combined bill for all users at a table
+ * @param {string} tableId - Table ID
+ * @returns {Promise<Object>} Combined bill with all orders
+ */
+const getTableCombinedBill = async (tableId) => {
+  const { Order } = require('../models');
+
+  // Get the active bill for this table
+  const bill = await Bill.findOne({
+    table: tableId,
+    status: { $in: [BILL_STATUS.OPEN, BILL_STATUS.REQUESTING_PAYMENT] }
+  }).lean();
+
+  if (!bill) {
+    throw new NotFoundError('No active bill found for this table');
+  }
+
+  // Get all orders for this bill
+  const orders = await Order.find({ bill: bill._id })
+    .populate('user', 'name email')
+    .populate({
+      path: 'items.menuItem',
+      select: 'name imageUrl price'
+    })
+    .sort({ createdAt: 1 })
+    .lean();
+
+  // Get all active sessions
+  const sessions = await TableSession.find({
+    table: tableId,
+    isActive: true
+  })
+    .populate('user', 'name email')
+    .lean();
+
+  // Group orders by user
+  const ordersByUser = {};
+  orders.forEach(order => {
+    const userId = order.user?._id?.toString() || 'unknown';
+    if (!ordersByUser[userId]) {
+      ordersByUser[userId] = {
+        user: order.user,
+        orders: [],
+        subtotal: 0
+      };
+    }
+    ordersByUser[userId].orders.push(order);
+    ordersByUser[userId].subtotal += order.totalAmount;
+  });
+
+  return {
+    bill: formatBill(bill),
+    guestCount: sessions.length,
+    guests: sessions.map(s => ({
+      id: s.user?._id,
+      name: s.user?.name || 'Guest',
+      joinedAt: s.joinedAt
+    })),
+    ordersByUser: Object.values(ordersByUser),
+    totalOrders: orders.length,
+    summary: {
+      subtotal: bill.subtotal,
+      serviceCharge: bill.serviceChargeAmount,
+      vat: bill.vatAmount,
+      discount: bill.discountAmount,
+      total: bill.totalAmount
+    }
+  };
+};
+
+/**
+ * Check if user can join table (validation)
+ * @param {string} tableId - Table ID
+ * @param {string} userId - User ID
+ * @returns {Promise<Object>} Validation result
+ */
+const canUserJoinTable = async (tableId, userId) => {
+  const table = await Table.findById(tableId);
+
+  if (!table) {
+    return { canJoin: false, reason: 'Table not found' };
+  }
+
+  if (!table.isActive) {
+    return { canJoin: false, reason: 'Table is not active' };
+  }
+
+  if (table.status === TABLE_STATUS.RESERVED) {
+    return { canJoin: false, reason: 'Table is reserved' };
+  }
+
+  if (table.status === TABLE_STATUS.CLEANING) {
+    return { canJoin: false, reason: 'Table is being cleaned' };
+  }
+
+  // Check if user already has active session at another table
+  const existingSession = await TableSession.findOne({
+    user: userId,
+    isActive: true
+  });
+
+  if (existingSession && existingSession.table.toString() !== tableId) {
+    return {
+      canJoin: false,
+      reason: 'User already has an active session at another table',
+      currentTableId: existingSession.table
+    };
+  }
+
+  // Check table capacity
+  const currentSessions = await TableSession.countDocuments({
+    table: tableId,
+    isActive: true
+  });
+
+  if (currentSessions >= table.capacity) {
+    return {
+      canJoin: false,
+      reason: 'Table is at full capacity',
+      capacity: table.capacity,
+      currentGuests: currentSessions
+    };
+  }
+
+  return {
+    canJoin: true,
+    table: formatTable(table),
+    currentGuests: currentSessions,
+    capacity: table.capacity
+  };
+};
+
+/**
+ * Transfer user to another table
+ * @param {string} userId - User ID
+ * @param {string} newTableId - New table ID
+ * @returns {Promise<Object>} Transfer result
+ */
+const transferUserToTable = async (userId, newTableId) => {
+  // Check if user can join new table
+  const canJoin = await canUserJoinTable(newTableId, userId);
+  if (!canJoin.canJoin && canJoin.reason !== 'User already has an active session at another table') {
+    throw new ValidationError(canJoin.reason);
+  }
+
+  // End current session
+  const currentSession = await TableSession.findOne({
+    user: userId,
+    isActive: true
+  });
+
+  if (currentSession) {
+    currentSession.isActive = false;
+    currentSession.leftAt = new Date();
+    await currentSession.save();
+
+    // Emit user left event
+    emitUserLeftTable({
+      tableId: currentSession.table.toString(),
+      userId
+    });
+  }
+
+  // Get new table
+  const newTable = await Table.findById(newTableId);
+  if (!newTable) {
+    throw new NotFoundError('New table not found');
+  }
+
+  // Find or create bill for new table
+  let bill = await Bill.findOne({
+    table: newTableId,
+    status: { $in: [BILL_STATUS.OPEN, BILL_STATUS.REQUESTING_PAYMENT] }
+  });
+
+  if (!bill) {
+    bill = await Bill.create({
+      table: newTableId,
+      billNumber: generateBillNumber(),
+      guestCount: 1,
+      status: BILL_STATUS.OPEN,
+      openedAt: new Date()
+    });
+  } else {
+    bill.guestCount += 1;
+    await bill.save();
+  }
+
+  // Create new session
+  const newSession = await TableSession.create({
+    user: userId,
+    table: newTableId,
+    bill: bill._id,
+    joinedAt: new Date(),
+    isActive: true
+  });
+
+  // Update table status if needed
+  if (newTable.status === TABLE_STATUS.AVAILABLE) {
+    newTable.status = TABLE_STATUS.OCCUPIED;
+    await newTable.save();
+    emitTableStatusChanged(newTable);
+  }
+
+  // Emit user joined event
+  emitUserJoinedTable({
+    tableId: newTableId,
+    userId,
+    userName: 'User'
+  });
+
+  return {
+    message: 'User transferred successfully',
+    previousTable: currentSession?.table,
+    newTable: formatTable(newTable),
+    session: formatSession(newSession),
+    bill: formatBill(bill)
+  };
+};
+
 module.exports = {
   getTables,
   getTableMap,
@@ -648,5 +903,10 @@ module.exports = {
   unmergeTables,
   getUserActiveSession,
   formatTable,
-  formatBill
+  formatBill,
+  // Multi-user functions
+  getTableSessionUsers,
+  getTableCombinedBill,
+  canUserJoinTable,
+  transferUserToTable
 };
