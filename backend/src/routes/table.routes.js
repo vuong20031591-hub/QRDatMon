@@ -224,4 +224,57 @@ router.post(
   tableController.generateQRCode
 );
 
+// ============================================
+// Multi-User Table Session Routes (Phase 16)
+// ============================================
+
+/**
+ * @route   GET /api/tables/:id/users
+ * @desc    Get all users in a table session
+ * @access  Staff only
+ */
+router.get(
+  '/:id/users',
+  authenticate,
+  requireStaff,
+  validate(Joi.object({ id: commonSchemas.objectId.required() }), 'params'),
+  tableController.getTableUsers
+);
+
+/**
+ * @route   GET /api/tables/:id/combined-bill
+ * @desc    Get combined bill for all users at a table
+ * @access  Authenticated users (at the table) or Staff
+ */
+router.get(
+  '/:id/combined-bill',
+  authenticate,
+  validate(Joi.object({ id: commonSchemas.objectId.required() }), 'params'),
+  tableController.getTableCombinedBill
+);
+
+/**
+ * @route   GET /api/tables/:id/can-join
+ * @desc    Check if current user can join a table
+ * @access  Authenticated users
+ */
+router.get(
+  '/:id/can-join',
+  authenticate,
+  validate(Joi.object({ id: commonSchemas.objectId.required() }), 'params'),
+  tableController.canJoinTable
+);
+
+/**
+ * @route   POST /api/tables/:id/transfer
+ * @desc    Transfer current user to another table
+ * @access  Authenticated users
+ */
+router.post(
+  '/:id/transfer',
+  authenticate,
+  validate(Joi.object({ id: commonSchemas.objectId.required() }), 'params'),
+  tableController.transferToTable
+);
+
 module.exports = router;

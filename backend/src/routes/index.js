@@ -22,6 +22,8 @@ const inventoryRoutes = require('./inventory.routes');
 const staffRoutes = require('./staff.routes');
 const notificationRoutes = require('./notification.routes');
 const reportRoutes = require('./report.routes');
+const activityLogRoutes = require('./activityLog.routes');
+const incidentRoutes = require('./incident.routes');
 
 // API versioning info
 const API_VERSION = "1.0.0";
@@ -52,6 +54,8 @@ router.get("/", (req, res) => {
       staff: "/api/staff",
       notifications: "/api/notifications",
       reports: "/api/reports",
+      activityLogs: "/api/activity-logs",
+      incidents: "/api/incidents",
     },
   });
 });
@@ -71,5 +75,7 @@ router.use('/inventory', inventoryRoutes);
 router.use('/staff', staffRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/reports', reportRoutes);
+router.use('/activity-logs', activityLogRoutes);
+router.use('/incidents', incidentRoutes);
 
 module.exports = router;

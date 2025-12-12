@@ -183,6 +183,56 @@ const unmergeTables = asyncHandler(async (req, res) => {
   return ok(res, result, 'Tables unmerged successfully');
 });
 
+/**
+ * Get all users in a table session
+ * GET /api/tables/:id/users
+ */
+const getTableUsers = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const users = await tableService.getTableSessionUsers(id);
+
+  return ok(res, { users, count: users.length }, 'Table users retrieved successfully');
+});
+
+/**
+ * Get combined bill for all users at a table
+ * GET /api/tables/:id/combined-bill
+ */
+const getTableCombinedBill = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const result = await tableService.getTableCombinedBill(id);
+
+  return ok(res, result, 'Combined bill retrieved successfully');
+});
+
+/**
+ * Check if user can join a table
+ * GET /api/tables/:id/can-join
+ */
+const canJoinTable = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user._id;
+
+  const result = await tableService.canUserJoinTable(id, userId);
+
+  return ok(res, result, result.canJoin ? 'User can join table' : result.reason);
+});
+
+/**
+ * Transfer user to another table
+ * POST /api/tables/:id/transfer
+ */
+const transferToTable = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user._id;
+
+  const result = await tableService.transferUserToTable(userId, id);
+
+  return ok(res, result, 'Transferred to table successfully');
+});
+
 module.exports = {
   getTables,
   getTableMap,
@@ -195,5 +245,10 @@ module.exports = {
   createTable,
   updateTable,
   mergeTables,
-  unmergeTables
+  unmergeTables,
+  // Multi-user endpoints
+  getTableUsers,
+  getTableCombinedBill,
+  canJoinTable,
+  transferToTable
 };
