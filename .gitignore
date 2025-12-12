@@ -47,3 +47,11 @@ local.properties
 *.key
 secrets/
 credentials/
+
+# Kiro
+.kiro/
+
+# Documentation (local only)
+docs/
+
+

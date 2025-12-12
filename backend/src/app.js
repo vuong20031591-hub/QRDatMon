@@ -1,56 +1,218 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const morgan = require('morgan');
-const { connectDB } = require('./database');
+/**
+ * QRDatMon Backend API
+ * Main Express Application Entry Point
+ *
+ * This file sets up the Express application with all middleware,
+ * routes, and error handling.
+ */
 
+require("dotenv").config();
+const express = require("express");
+const cors = require("cors");
+const morgan = require("morgan");
+const http = require("http");
+
+// Import configuration
+const config = require("./config");
+
+// Import database connection
+const { connectDB } = require("./database");
+
+// Import middleware
+const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
+const { generalLimiter } = require("./middleware/rateLimiter");
+
+// Import routes
+const apiRoutes = require("./routes");
+
+// Initialize Express app
 const app = express();
 
-// Middleware
-app.use(cors());
-app.use(morgan('dev'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Trust proxy (required for rate limiting behind reverse proxy)
+app.set("trust proxy", 1);
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+// ============================================
+// Global Middleware
+// ============================================
+
+// CORS configuration
+app.use(
+  cors({
+    origin: config.server.corsOrigins,
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  }),
+);
+
+// Request logging
+if (config.server.env !== "test") {
+  app.use(morgan(config.logging.format));
+}
+
+// Body parsing
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+// Apply general rate limiter to all requests
+if (config.rateLimit.enabled) {
+  app.use(generalLimiter);
+}
+
+// ============================================
+// Health Check Endpoints
+// ============================================
+
+/**
+ * @route   GET /health
+ * @desc    Basic health check
+ * @access  Public
+ */
+app.get("/health", (req, res) => {
+  res.json({
+    success: true,
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    environment: config.server.env,
+  });
 });
 
-// API Routes (sẽ thêm sau)
-app.get('/api', (req, res) => {
-  res.json({ message: 'QR Dat Mon API v1.0' });
+/**
+ * @route   GET /health/ready
+ * @desc    Readiness check (includes DB connection status)
+ * @access  Public
+ */
+app.get("/health/ready", async (req, res) => {
+  const mongoose = require("mongoose");
+  const dbState = mongoose.connection.readyState;
+  const dbStates = {
+    0: "disconnected",
+    1: "connected",
+    2: "connecting",
+    3: "disconnecting",
+  };
+
+  const isReady = dbState === 1;
+
+  res.status(isReady ? 200 : 503).json({
+    success: isReady,
+    status: isReady ? "ready" : "not ready",
+    timestamp: new Date().toISOString(),
+    services: {
+      database: {
+        status: dbStates[dbState] || "unknown",
+        ready: isReady,
+      },
+    },
+  });
 });
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ error: 'Not Found' });
-});
+// ============================================
+// API Routes
+// ============================================
 
-// Error handler
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Internal Server Error' });
-});
+// Mount API routes under /api prefix
+app.use("/api", apiRoutes);
 
-const PORT = process.env.PORT || 3000;
+// ============================================
+// Error Handling
+// ============================================
 
+// Handle 404 - Route not found
+app.use(notFoundHandler);
+
+// Global error handler (must be last)
+app.use(errorHandler);
+
+// ============================================
+// Server Startup
+// ============================================
+
+const PORT = config.server.port;
+
+/**
+ * Start the server
+ */
 const startServer = async () => {
   try {
+    // Validate configuration (throws error in production if missing required config)
+    if (config.server.env === "production") {
+      config.validateConfig();
+    }
+
     // Connect to MongoDB
     await connectDB();
-    
-    // Start server
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`📍 Health check: http://localhost:${PORT}/health`);
+    console.log("✅ Database connected");
+
+    // Initialize Firebase (if configured)
+    const firebase = require("./config/firebase");
+    if (firebase.isInitialized()) {
+      console.log("✅ Firebase initialized");
+    } else {
+      console.warn("⚠️  Firebase not configured - Google auth will not work");
+    }
+
+    // Create HTTP server
+    const server = http.createServer(app);
+
+    // TODO: Initialize Socket.io for real-time features
+    // const io = require('socket.io')(server, {
+    //   cors: {
+    //     origin: config.server.corsOrigins,
+    //     credentials: true
+    //   }
+    // });
+    // require('./socket')(io);
+
+    // Start listening
+    server.listen(PORT, () => {
+      console.log("");
+      console.log("🚀 QRDatMon API Server Started");
+      console.log("================================");
+      console.log(`📍 Environment: ${config.server.env}`);
+      console.log(`📍 Port: ${PORT}`);
+      console.log(`📍 API Base: http://localhost:${PORT}/api`);
+      console.log(`📍 Health Check: http://localhost:${PORT}/health`);
+      console.log("================================");
+      console.log("");
     });
+
+    // Graceful shutdown handling
+    const gracefulShutdown = async (signal) => {
+      console.log(`\n${signal} received. Shutting down gracefully...`);
+
+      server.close(async () => {
+        console.log("HTTP server closed");
+
+        // Close database connection
+        const { disconnectDB } = require("./database");
+        await disconnectDB();
+        console.log("Database connection closed");
+
+        process.exit(0);
+      });
+
+      // Force close after 10 seconds
+      setTimeout(() => {
+        console.error(
+          "Could not close connections in time, forcefully shutting down",
+        );
+        process.exit(1);
+      }, 10000);
+    };
+
+    process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+    process.on("SIGINT", () => gracefulShutdown("SIGINT"));
   } catch (error) {
-    console.error('Failed to start server:', error);
+    console.error("❌ Failed to start server:", error.message);
     process.exit(1);
   }
 };
 
-startServer();
+// Start server if this file is run directly
+if (require.main === module) {
+  startServer();
+}
 
-module.exports = app;
+// Export for testing
+module.exports = { app, startServer };
