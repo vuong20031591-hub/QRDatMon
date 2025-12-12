@@ -19,7 +19,7 @@ const paymentRoutes = require("./payment.routes");
 const promotionRoutes = require("./promotion.routes");
 const reviewRoutes = require('./review.routes');
 const inventoryRoutes = require('./inventory.routes');
-// const staffRoutes = require('./staff.routes');
+const staffRoutes = require('./staff.routes');
 // const reportRoutes = require('./report.routes');
 // const adminRoutes = require('./admin.routes');
 
@@ -67,7 +67,7 @@ router.use("/payments", paymentRoutes);
 router.use("/promotions", promotionRoutes);
 router.use('/reviews', reviewRoutes);
 router.use('/inventory', inventoryRoutes);
-// router.use('/staff', staffRoutes);
+router.use('/staff', staffRoutes);
 // router.use('/reports', reportRoutes);
 // router.use('/admin', adminRoutes);
 
