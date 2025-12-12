@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">QRDatMon Customer</string>
+    
+    <!-- Common -->
+    <string name="ok">OK</string>
+    <string name="cancel">Hủy</string>
+    <string name="retry">Thử lại</string>
+    <string name="error">Lỗi</string>
+    <string name="loading">Đang tải...</string>
+    
+    <!-- Auth -->
+    <string name="login">Đăng nhập</string>
+    <string name="register">Đăng ký</string>
+    <string name="email">Email</string>
+    <string name="password">Mật khẩu</string>
+    <string name="forgot_password">Quên mật khẩu?</string>
+    
+    <!-- Menu -->
+    <string name="menu">Thực đơn</string>
+    <string name="search_menu">Tìm món...</string>
+    <string name="add_to_cart">Thêm vào giỏ</string>
+    
+    <!-- QR -->
+    <string name="scan_qr">Quét mã QR</string>
+    <string name="scan_table_qr">Quét mã QR trên bàn</string>
+    
+    <!-- Order -->
+    <string name="my_order">Đơn hàng</string>
+    <string name="cart">Giỏ hàng</string>
+    <string name="place_order">Đặt món</string>
+    <string name="order_status">Trạng thái đơn</string>
+    
+    <!-- Payment -->
+    <string name="payment">Thanh toán</string>
+    <string name="total">Tổng cộng</string>
+</resources>

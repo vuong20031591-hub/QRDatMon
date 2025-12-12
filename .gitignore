@@ -1,0 +1,49 @@
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Firebase/Google Services (contains API keys)
+google-services.json
+GoogleService-Info.plist
+firebase-adminsdk*.json
+*-firebase-adminsdk-*.json
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Dependencies
+node_modules/
+
+# Build outputs
+build/
+dist/
+.next/
+out/
+
+# Mobile specific
+.gradle/
+.kotlin/
+local.properties
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# Secrets
+*.pem
+*.key
+secrets/
+credentials/

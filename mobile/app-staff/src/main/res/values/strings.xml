@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">QRDatMon Staff</string>
+    <string name="table_management">Quản lý bàn</string>
+    <string name="order_processing">Xử lý đơn hàng</string>
+    <string name="payment">Thanh toán</string>
+</resources>
