@@ -14,10 +14,10 @@ const categoryRoutes = require("./category.routes");
 const tableRoutes = require("./table.routes");
 const cartRoutes = require("./cart.routes");
 const orderRoutes = require("./order.routes");
-// const billRoutes = require('./bill.routes');
-// const paymentRoutes = require('./payment.routes');
+const billRoutes = require("./bill.routes");
+const paymentRoutes = require("./payment.routes");
+const promotionRoutes = require("./promotion.routes");
 // const reviewRoutes = require('./review.routes');
-// const promotionRoutes = require('./promotion.routes');
 // const inventoryRoutes = require('./inventory.routes');
 // const staffRoutes = require('./staff.routes');
 // const reportRoutes = require('./report.routes');
@@ -46,8 +46,8 @@ router.get("/", (req, res) => {
       orders: "/api/orders",
       bills: "/api/bills",
       payments: "/api/payments",
-      reviews: "/api/reviews",
       promotions: "/api/promotions",
+      reviews: "/api/reviews",
       inventory: "/api/inventory",
       staff: "/api/staff",
       reports: "/api/reports",
@@ -62,10 +62,10 @@ router.use("/menu", menuRoutes);
 router.use("/tables", tableRoutes);
 router.use("/cart", cartRoutes);
 router.use("/orders", orderRoutes);
-// router.use('/bills', billRoutes);
-// router.use('/payments', paymentRoutes);
+router.use("/bills", billRoutes);
+router.use("/payments", paymentRoutes);
+router.use("/promotions", promotionRoutes);
 // router.use('/reviews', reviewRoutes);
-// router.use('/promotions', promotionRoutes);
 // router.use('/inventory', inventoryRoutes);
 // router.use('/staff', staffRoutes);
 // router.use('/reports', reportRoutes);
