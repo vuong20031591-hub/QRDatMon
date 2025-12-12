@@ -20,8 +20,8 @@ const promotionRoutes = require("./promotion.routes");
 const reviewRoutes = require('./review.routes');
 const inventoryRoutes = require('./inventory.routes');
 const staffRoutes = require('./staff.routes');
-// const reportRoutes = require('./report.routes');
-// const adminRoutes = require('./admin.routes');
+const notificationRoutes = require('./notification.routes');
+const reportRoutes = require('./report.routes');
 
 // API versioning info
 const API_VERSION = "1.0.0";
@@ -50,6 +50,7 @@ router.get("/", (req, res) => {
       reviews: "/api/reviews",
       inventory: "/api/inventory",
       staff: "/api/staff",
+      notifications: "/api/notifications",
       reports: "/api/reports",
     },
   });
@@ -68,7 +69,7 @@ router.use("/promotions", promotionRoutes);
 router.use('/reviews', reviewRoutes);
 router.use('/inventory', inventoryRoutes);
 router.use('/staff', staffRoutes);
-// router.use('/reports', reportRoutes);
-// router.use('/admin', adminRoutes);
+router.use('/notifications', notificationRoutes);
+router.use('/reports', reportRoutes);
 
 module.exports = router;
