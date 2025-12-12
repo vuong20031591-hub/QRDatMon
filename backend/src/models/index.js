@@ -21,6 +21,8 @@ const Incident = require('./Incident');
 const Notification = require('./Notification');
 const Printer = require('./Printer');
 const Setting = require('./Setting');
+const Inventory = require('./Inventory');
+const InventoryLog = require('./InventoryLog');
 
 module.exports = {
   User,
@@ -45,5 +47,7 @@ module.exports = {
   Incident,
   Notification,
   Printer,
-  Setting
+  Setting,
+  Inventory,
+  InventoryLog
 };
