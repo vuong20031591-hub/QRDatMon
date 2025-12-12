@@ -15,7 +15,8 @@ const {
   Category,
   MenuItem,
   Area,
-  Table
+  Table,
+  Setting
 } = require('../models');
 
 // Import database connection
@@ -105,6 +106,19 @@ const adminStaffData = {
   hireDate: new Date()
 };
 
+// System settings data
+const settingsData = [
+  { key: 'SERVICE_CHARGE_PERCENT', value: 5, type: 'number', description: 'Phí dịch vụ (%)' },
+  { key: 'VAT_PERCENT', value: 10, type: 'number', description: 'Thuế VAT (%)' },
+  { key: 'RESTAURANT_NAME', value: 'QRDatMon Restaurant', type: 'string', description: 'Tên nhà hàng' },
+  { key: 'RESTAURANT_ADDRESS', value: '123 Đường ABC, Quận 1, TP.HCM', type: 'string', description: 'Địa chỉ nhà hàng' },
+  { key: 'RESTAURANT_PHONE', value: '0901234567', type: 'string', description: 'Số điện thoại' },
+  { key: 'OPERATING_HOURS_START', value: '08:00', type: 'string', description: 'Giờ mở cửa' },
+  { key: 'OPERATING_HOURS_END', value: '22:00', type: 'string', description: 'Giờ đóng cửa' },
+  { key: 'CURRENCY', value: 'VND', type: 'string', description: 'Đơn vị tiền tệ' },
+  { key: 'DEFAULT_LANGUAGE', value: 'vi', type: 'string', description: 'Ngôn ngữ mặc định' }
+];
+
 /**
  * Clear all existing data
  */
@@ -115,6 +129,7 @@ const clearData = async () => {
     MenuItem.deleteMany({}),
     Area.deleteMany({}),
     Table.deleteMany({})
+    // Note: Settings are not cleared to preserve configuration
   ]);
   console.log('✅ Data cleared');
 };
@@ -248,6 +263,33 @@ const seedTables = async (areas) => {
 };
 
 /**
+ * Seed system settings
+ */
+const seedSettings = async () => {
+  console.log('⚙️  Seeding system settings...');
+
+  let created = 0;
+  let updated = 0;
+
+  for (const setting of settingsData) {
+    const existing = await Setting.findOne({ key: setting.key });
+    if (!existing) {
+      await Setting.create(setting);
+      created++;
+    } else {
+      // Update description if changed
+      if (existing.description !== setting.description) {
+        existing.description = setting.description;
+        await existing.save();
+        updated++;
+      }
+    }
+  }
+
+  console.log(`✅ Settings: ${created} created, ${updated} updated`);
+};
+
+/**
  * Seed admin user
  */
 const seedAdminUser = async () => {
@@ -293,6 +335,7 @@ const seed = async () => {
     await clearData();
 
     // Seed data
+    await seedSettings();
     const categories = await seedCategories();
     await seedMenuItems(categories);
     const areas = await seedAreas();

@@ -4,7 +4,7 @@
  * Requirements: 4.1, 4.2, 4.3, 4.4, 4.5
  */
 
-const { Cart, MenuItem, Combo, TableSession, Bill } = require('../models');
+const { Cart, MenuItem, Combo, TableSession, Bill, Setting } = require('../models');
 const {
   NotFoundError,
   ValidationError,
@@ -13,11 +13,54 @@ const {
 const { MENU_ITEM_STATUS, BILL_STATUS } = require('../utils/constants');
 
 /**
- * Service charge and VAT rates (should be configurable via settings)
+ * Default tax rates (fallback if settings not configured)
  */
-const TAX_RATES = {
+const DEFAULT_TAX_RATES = {
   SERVICE_CHARGE_PERCENT: 5, // 5%
   VAT_PERCENT: 10 // 10%
+};
+
+/**
+ * Get tax rates from Settings model with caching
+ * @returns {Promise<Object>} Tax rates
+ */
+let taxRatesCache = null;
+let taxRatesCacheTime = 0;
+const TAX_RATES_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+const getTaxRates = async () => {
+  const now = Date.now();
+  
+  // Return cached value if still valid
+  if (taxRatesCache && (now - taxRatesCacheTime) < TAX_RATES_CACHE_TTL) {
+    return taxRatesCache;
+  }
+
+  try {
+    const [serviceCharge, vat] = await Promise.all([
+      Setting.getValue('SERVICE_CHARGE_PERCENT', DEFAULT_TAX_RATES.SERVICE_CHARGE_PERCENT),
+      Setting.getValue('VAT_PERCENT', DEFAULT_TAX_RATES.VAT_PERCENT)
+    ]);
+
+    taxRatesCache = {
+      SERVICE_CHARGE_PERCENT: Number(serviceCharge),
+      VAT_PERCENT: Number(vat)
+    };
+    taxRatesCacheTime = now;
+
+    return taxRatesCache;
+  } catch (error) {
+    console.error('Failed to load tax rates from settings:', error.message);
+    return DEFAULT_TAX_RATES;
+  }
+};
+
+/**
+ * Clear tax rates cache (call when settings are updated)
+ */
+const clearTaxRatesCache = () => {
+  taxRatesCache = null;
+  taxRatesCacheTime = 0;
 };
 
 /**
@@ -342,11 +385,12 @@ const clearCartBySession = async (userId) => {
 };
 
 /**
- * Calculate cart totals
+ * Calculate cart totals (sync version with provided rates)
  * @param {Array} items - Cart items
+ * @param {Object} taxRates - Tax rates object
  * @returns {Object} Calculated totals
  */
-const calculateCartTotal = (items) => {
+const calculateCartTotalSync = (items, taxRates) => {
   // Calculate subtotal (sum of all items * quantity)
   const subtotal = items.reduce((sum, item) => {
     const itemTotal = item.unitPrice * item.quantity;
@@ -354,23 +398,33 @@ const calculateCartTotal = (items) => {
   }, 0);
 
   // Calculate service charge
-  const serviceChargeAmount = Math.round(subtotal * (TAX_RATES.SERVICE_CHARGE_PERCENT / 100));
+  const serviceChargeAmount = Math.round(subtotal * (taxRates.SERVICE_CHARGE_PERCENT / 100));
 
   // Calculate VAT (on subtotal + service charge)
-  const vatAmount = Math.round((subtotal + serviceChargeAmount) * (TAX_RATES.VAT_PERCENT / 100));
+  const vatAmount = Math.round((subtotal + serviceChargeAmount) * (taxRates.VAT_PERCENT / 100));
 
   // Calculate grand total
   const total = subtotal + serviceChargeAmount + vatAmount;
 
   return {
     subtotal,
-    serviceChargePercent: TAX_RATES.SERVICE_CHARGE_PERCENT,
+    serviceChargePercent: taxRates.SERVICE_CHARGE_PERCENT,
     serviceChargeAmount,
-    vatPercent: TAX_RATES.VAT_PERCENT,
+    vatPercent: taxRates.VAT_PERCENT,
     vatAmount,
     total,
     itemCount: items.reduce((count, item) => count + item.quantity, 0)
   };
+};
+
+/**
+ * Calculate cart totals (async version - fetches rates from settings)
+ * @param {Array} items - Cart items
+ * @returns {Promise<Object>} Calculated totals
+ */
+const calculateCartTotal = async (items) => {
+  const taxRates = await getTaxRates();
+  return calculateCartTotalSync(items, taxRates);
 };
 
 /**
@@ -548,9 +602,10 @@ const findExistingCartItem = (items, itemDetails, note, toppings) => {
 /**
  * Format cart for API response
  * @param {Object} cart - Cart document
+ * @param {Object} taxRates - Tax rates (optional, will use defaults if not provided)
  * @returns {Object} Formatted cart with totals
  */
-const formatCart = (cart) => {
+const formatCartSync = (cart, taxRates = DEFAULT_TAX_RATES) => {
   const items = cart.items.map(item => ({
     id: item._id,
     menuItem: item.menuItem ? {
@@ -582,7 +637,7 @@ const formatCart = (cart) => {
     updatedAt: item.updatedAt
   }));
 
-  const totals = calculateCartTotal(items);
+  const totals = calculateCartTotalSync(items, taxRates);
 
   return {
     id: cart._id,
@@ -593,6 +648,16 @@ const formatCart = (cart) => {
     createdAt: cart.createdAt,
     updatedAt: cart.updatedAt
   };
+};
+
+/**
+ * Format cart for API response (async version)
+ * @param {Object} cart - Cart document
+ * @returns {Promise<Object>} Formatted cart with totals
+ */
+const formatCart = async (cart) => {
+  const taxRates = await getTaxRates();
+  return formatCartSync(cart, taxRates);
 };
 
 /**
@@ -631,8 +696,12 @@ module.exports = {
   clearCart,
   clearCartBySession,
   calculateCartTotal,
+  calculateCartTotalSync,
   deleteCart,
   getCartForOrder,
   formatCart,
-  TAX_RATES
+  formatCartSync,
+  getTaxRates,
+  clearTaxRatesCache,
+  DEFAULT_TAX_RATES
 };

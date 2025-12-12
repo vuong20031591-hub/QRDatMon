@@ -9,6 +9,15 @@ const { NotFoundError, ValidationError, ConflictError } = require('../utils/erro
 const { MENU_ITEM_STATUS, PAGINATION } = require('../utils/constants');
 
 /**
+ * Escape special regex characters to prevent regex injection attacks
+ * @param {string} string - User input string
+ * @returns {string} Escaped string safe for regex
+ */
+const escapeRegex = (string) => {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+};
+
+/**
  * Get all menu items grouped by category
  * @param {Object} options - Query options
  * @param {boolean} options.includeUnavailable - Include out_of_stock items
@@ -109,11 +118,12 @@ const getMenuItems = async (filters = {}, pagination = {}) => {
     query.isNew = isNew;
   }
 
-  // Text search
+  // Text search (escape special regex characters to prevent injection)
   if (search) {
+    const escapedSearch = escapeRegex(search);
     query.$or = [
-      { name: { $regex: search, $options: 'i' } },
-      { description: { $regex: search, $options: 'i' } }
+      { name: { $regex: escapedSearch, $options: 'i' } },
+      { description: { $regex: escapedSearch, $options: 'i' } }
     ];
   }
 
@@ -160,10 +170,13 @@ const searchMenuItems = async (searchQuery, options = {}) => {
     return [];
   }
 
+  // Escape special regex characters to prevent injection
+  const escapedQuery = escapeRegex(searchQuery.trim());
+
   const query = {
     $or: [
-      { name: { $regex: searchQuery, $options: 'i' } },
-      { description: { $regex: searchQuery, $options: 'i' } }
+      { name: { $regex: escapedQuery, $options: 'i' } },
+      { description: { $regex: escapedQuery, $options: 'i' } }
     ]
   };
 
