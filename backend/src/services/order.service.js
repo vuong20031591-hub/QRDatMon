@@ -17,9 +17,15 @@ const {
   ORDER_ITEM_STATUS,
   BILL_STATUS,
   MENU_ITEM_STATUS,
-  PAGINATION,
-  SOCKET_EVENTS
+  PAGINATION
 } = require('../utils/constants');
+const {
+  emitOrderCreated,
+  emitOrderStatusUpdated,
+  emitOrderItemStatusUpdated,
+  emitOrderReady,
+  emitOrderCancelled
+} = require('../socket/emitters');
 
 /**
  * Create order from cart
@@ -152,10 +158,12 @@ const createOrder = async (userId, options = {}) => {
   // Clear the cart after successful order creation
   await cartService.deleteCart(userId, session.table._id.toString());
 
-  // TODO: Emit real-time event to kitchen
-  // socketService.emitToRoom(SOCKET_ROOMS.KITCHEN, SOCKET_EVENTS.ORDER_CREATED, formatOrder(order));
+  // Emit real-time event to kitchen
+  const formattedOrder = formatOrder(order);
+  formattedOrder.table = session.table._id.toString();
+  emitOrderCreated(formattedOrder);
 
-  return formatOrder(order);
+  return formattedOrder;
 };
 
 /**
@@ -313,8 +321,8 @@ const confirmOrder = async (orderId, staff) => {
 
   await order.save();
 
-  // TODO: Emit real-time event
-  // socketService.emitToRoom(SOCKET_ROOMS.KITCHEN, SOCKET_EVENTS.ORDER_CONFIRMED, formatOrder(order));
+  // Emit real-time event
+  emitOrderStatusUpdated(order);
 
   return getOrderById(orderId);
 };
@@ -404,10 +412,19 @@ const updateOrderItemStatus = async (orderId, itemId, status, options = {}) => {
 
   await order.save();
 
-  // TODO: Emit real-time event based on status
-  // if (status === ORDER_ITEM_STATUS.READY) {
-  //   socketService.emitToRoom(SOCKET_ROOMS.STAFF, SOCKET_EVENTS.ORDER_ITEM_READY, { orderId, itemId, item });
-  // }
+  // Emit real-time event based on status
+  emitOrderItemStatusUpdated({
+    orderId,
+    itemId,
+    status,
+    itemName: item.itemName,
+    tableId: order.bill?.table?.toString()
+  });
+
+  // If order is ready, emit order ready event
+  if (order.status === ORDER_STATUS.READY) {
+    emitOrderReady(order);
+  }
 
   return getOrderById(orderId);
 };
@@ -467,8 +484,13 @@ const cancelOrder = async (orderId, reason, staff) => {
     await bill.save();
   }
 
-  // TODO: Emit real-time event
-  // socketService.emit(SOCKET_EVENTS.ORDER_STATUS_UPDATED, formatOrder(order));
+  // Emit real-time event
+  emitOrderCancelled({
+    orderId,
+    reason,
+    cancelledBy: staff?._id,
+    tableId: bill?.table?.toString()
+  });
 
   return getOrderById(orderId);
 };

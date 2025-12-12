@@ -13,6 +13,11 @@ const {
   TableOccupiedError
 } = require('../utils/errors');
 const { TABLE_STATUS, BILL_STATUS } = require('../utils/constants');
+const {
+  emitTableStatusChanged,
+  emitUserJoinedTable,
+  emitUserLeftTable
+} = require('../socket/emitters');
 
 /**
  * Get all tables with optional filtering
@@ -228,7 +233,15 @@ const joinTable = async (qrToken, user) => {
   if (table.status === TABLE_STATUS.AVAILABLE) {
     table.status = TABLE_STATUS.OCCUPIED;
     await table.save();
+    emitTableStatusChanged(table);
   }
+
+  // Emit user joined event
+  emitUserJoinedTable({
+    tableId: table._id.toString(),
+    userId: user._id.toString(),
+    userName: user.name || user.email || 'Guest'
+  });
 
   return {
     session: formatSession(session),
@@ -278,6 +291,12 @@ const leaveTable = async (userId, tableId) => {
 
   // If no more sessions, table can be set to cleaning (optionally)
   // For now, we'll leave it as occupied until bill is paid
+
+  // Emit user left event
+  emitUserLeftTable({
+    tableId,
+    userId
+  });
 
   return {
     message: 'Successfully left the table',
@@ -365,6 +384,9 @@ const updateTableStatus = async (tableId, status, options = {}) => {
 
   table.status = status;
   await table.save();
+
+  // Emit real-time event
+  emitTableStatusChanged(table);
 
   return getTableById(tableId);
 };

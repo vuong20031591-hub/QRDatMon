@@ -155,14 +155,9 @@ const startServer = async () => {
     // Create HTTP server
     const server = http.createServer(app);
 
-    // TODO: Initialize Socket.io for real-time features
-    // const io = require('socket.io')(server, {
-    //   cors: {
-    //     origin: config.server.corsOrigins,
-    //     credentials: true
-    //   }
-    // });
-    // require('./socket')(io);
+    // Initialize Socket.io for real-time features
+    const { initializeSocket } = require('./socket');
+    initializeSocket(server);
 
     // Start listening
     server.listen(PORT, () => {
