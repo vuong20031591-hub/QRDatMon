@@ -11,6 +11,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import com.qrdatmon.customer.ui.auth.LoginScreen
+import com.qrdatmon.customer.ui.auth.OtpVerificationScreen
 import com.qrdatmon.customer.ui.onboarding.OnboardingScreen
 import com.qrdatmon.customer.ui.splash.SimpleSplashScreen
 import com.qrdatmon.customer.ui.theme.QRDatMonTheme
@@ -32,6 +34,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun QRDatMonCustomerApp() {
     var currentScreen by remember { mutableStateOf("splash") }
+    var phoneNumber by remember { mutableStateOf("") }
 
     when (currentScreen) {
         "splash" -> {
@@ -44,6 +47,29 @@ fun QRDatMonCustomerApp() {
                 onLoginClick = { currentScreen = "login" },
                 onGoogleSignInClick = { currentScreen = "google_signin" },
                 onSkipClick = { currentScreen = "home" }
+            )
+        }
+        "login" -> {
+            LoginScreen(
+                onBackClick = { currentScreen = "onboarding" },
+                onSendOtpClick = { phone ->
+                    phoneNumber = phone
+                    currentScreen = "otp_verification"
+                },
+                onGoogleSignInClick = { currentScreen = "google_signin" }
+            )
+        }
+        "otp_verification" -> {
+            OtpVerificationScreen(
+                phoneNumber = phoneNumber,
+                onBackClick = { currentScreen = "login" },
+                onVerifyClick = { otp ->
+                    // TODO: Verify OTP and navigate to home
+                    currentScreen = "home"
+                },
+                onResendOtp = {
+                    // TODO: Resend OTP logic
+                }
             )
         }
         "home" -> {
