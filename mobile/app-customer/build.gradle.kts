@@ -27,7 +27,8 @@ android {
 
     buildTypes {
         debug {
-            applicationIdSuffix = ".debug"
+            // Temporarily disable suffix for testing
+            // applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
             isDebuggable = true
         }

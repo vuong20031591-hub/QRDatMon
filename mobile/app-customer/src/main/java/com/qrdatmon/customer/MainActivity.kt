@@ -8,9 +8,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import com.qrdatmon.customer.ui.onboarding.OnboardingScreen
+import com.qrdatmon.customer.ui.splash.SimpleSplashScreen
 import com.qrdatmon.customer.ui.theme.QRDatMonTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -21,12 +23,43 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             QRDatMonTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "QRDatMon Customer",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+                QRDatMonCustomerApp()
+            }
+        }
+    }
+}
+
+@Composable
+fun QRDatMonCustomerApp() {
+    var currentScreen by remember { mutableStateOf("splash") }
+
+    when (currentScreen) {
+        "splash" -> {
+            SimpleSplashScreen(
+                onNavigateToHome = { currentScreen = "onboarding" }
+            )
+        }
+        "onboarding" -> {
+            OnboardingScreen(
+                onLoginClick = { currentScreen = "login" },
+                onGoogleSignInClick = { currentScreen = "google_signin" },
+                onSkipClick = { currentScreen = "home" }
+            )
+        }
+        "home" -> {
+            Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                Greeting(
+                    name = "QRDatMon Customer - Home",
+                    modifier = Modifier.padding(innerPadding)
+                )
+            }
+        }
+        else -> {
+            Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                Greeting(
+                    name = "QRDatMon Customer",
+                    modifier = Modifier.padding(innerPadding)
+                )
             }
         }
     }
