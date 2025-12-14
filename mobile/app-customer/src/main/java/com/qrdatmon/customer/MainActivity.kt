@@ -13,7 +13,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.qrdatmon.customer.ui.auth.LoginScreen
 import com.qrdatmon.customer.ui.auth.OtpVerificationScreen
+import com.qrdatmon.customer.ui.cart.CartScreen
+import com.qrdatmon.customer.ui.menu.MenuScreen
 import com.qrdatmon.customer.ui.onboarding.OnboardingScreen
+import com.qrdatmon.customer.ui.qr.QrScanScreen
+import com.qrdatmon.customer.ui.qr.TableCodeInputScreen
 import com.qrdatmon.customer.ui.splash.SimpleSplashScreen
 import com.qrdatmon.customer.ui.theme.QRDatMonTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -35,6 +39,7 @@ class MainActivity : ComponentActivity() {
 fun QRDatMonCustomerApp() {
     var currentScreen by remember { mutableStateOf("splash") }
     var phoneNumber by remember { mutableStateOf("") }
+    var tableCode by remember { mutableStateOf("") }
 
     when (currentScreen) {
         "splash" -> {
@@ -46,7 +51,7 @@ fun QRDatMonCustomerApp() {
             OnboardingScreen(
                 onLoginClick = { currentScreen = "login" },
                 onGoogleSignInClick = { currentScreen = "google_signin" },
-                onSkipClick = { currentScreen = "home" }
+                onSkipClick = { currentScreen = "qr_scan" }
             )
         }
         "login" -> {
@@ -64,11 +69,61 @@ fun QRDatMonCustomerApp() {
                 phoneNumber = phoneNumber,
                 onBackClick = { currentScreen = "login" },
                 onVerifyClick = { otp ->
-                    // TODO: Verify OTP and navigate to home
-                    currentScreen = "home"
+                    // TODO: Verify OTP and navigate to QR scan
+                    currentScreen = "qr_scan"
                 },
                 onResendOtp = {
                     // TODO: Resend OTP logic
+                }
+            )
+        }
+        "qr_scan" -> {
+            QrScanScreen(
+                onBackClick = { currentScreen = "onboarding" },
+                onManualInputClick = {
+                    currentScreen = "table_code_input"
+                },
+                onQrScanned = { code ->
+                    tableCode = code
+                    currentScreen = "menu"
+                }
+            )
+        }
+        "table_code_input" -> {
+            TableCodeInputScreen(
+                onBackClick = { currentScreen = "qr_scan" },
+                onConfirmClick = { code ->
+                    tableCode = code
+                    currentScreen = "menu"
+                },
+                onScanQrClick = { currentScreen = "qr_scan" }
+            )
+        }
+        "menu" -> {
+            MenuScreen(
+                tableCode = tableCode.ifEmpty { "A12" },
+                onBackClick = { currentScreen = "qr_scan" },
+                onCartClick = {
+                    currentScreen = "cart"
+                },
+                onOrderClick = {
+                    // TODO: Navigate to order confirmation
+                    currentScreen = "home"
+                }
+            )
+        }
+        "cart" -> {
+            CartScreen(
+                tableCode = tableCode.ifEmpty { "A12" },
+                onBackClick = { currentScreen = "menu" },
+                onCheckoutClick = {
+                    // TODO: Navigate to checkout/order confirmation
+                    currentScreen = "home"
+                },
+                onNavigateToMenu = { currentScreen = "menu" },
+                onNavigateToOrderStatus = {
+                    // TODO: Navigate to order status
+                    currentScreen = "home"
                 }
             )
         }
