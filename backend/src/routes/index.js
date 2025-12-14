@@ -5,6 +5,7 @@
  */
 
 const express = require("express");
+const swaggerUi = require('swagger-ui-express');
 const router = express.Router();
 
 // Import route modules
@@ -24,6 +25,9 @@ const notificationRoutes = require('./notification.routes');
 const reportRoutes = require('./report.routes');
 const activityLogRoutes = require('./activityLog.routes');
 const incidentRoutes = require('./incident.routes');
+const healthRoutes = require('./health.routes');
+const uploadRoutes = require('./upload.routes');
+const swaggerSpec = require('../config/swagger');
 
 // API versioning info
 const API_VERSION = "1.0.0";
@@ -56,6 +60,9 @@ router.get("/", (req, res) => {
       reports: "/api/reports",
       activityLogs: "/api/activity-logs",
       incidents: "/api/incidents",
+      health: "/api/health",
+      upload: "/api/upload",
+      docs: "/api/docs",
     },
   });
 });
@@ -77,5 +84,13 @@ router.use('/notifications', notificationRoutes);
 router.use('/reports', reportRoutes);
 router.use('/activity-logs', activityLogRoutes);
 router.use('/incidents', incidentRoutes);
+router.use('/health', healthRoutes);
+router.use('/upload', uploadRoutes);
+
+// Swagger API Documentation
+router.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  explorer: true,
+  customCss: '.swagger-ui .topbar { display: none }'
+}));
 
 module.exports = router;

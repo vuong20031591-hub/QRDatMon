@@ -20,7 +20,7 @@ router.use(authenticate);
  */
 router.get(
   '/stats',
-  requireRole([USER_ROLES.MANAGER, USER_ROLES.ADMIN]),
+  requireRole(USER_ROLES.MANAGER, USER_ROLES.ADMIN),
   incidentController.getIncidentStats
 );
 
@@ -31,7 +31,7 @@ router.get(
  */
 router.get(
   '/',
-  requireRole([USER_ROLES.MANAGER, USER_ROLES.ADMIN]),
+  requireRole(USER_ROLES.MANAGER, USER_ROLES.ADMIN),
   incidentController.getIncidents
 );
 
@@ -64,7 +64,7 @@ router.get(
  */
 router.put(
   '/:id/start',
-  requireRole([USER_ROLES.MANAGER, USER_ROLES.ADMIN]),
+  requireRole(USER_ROLES.MANAGER, USER_ROLES.ADMIN),
   incidentController.startHandling
 );
 
@@ -75,7 +75,7 @@ router.put(
  */
 router.put(
   '/:id/resolve',
-  requireRole([USER_ROLES.MANAGER, USER_ROLES.ADMIN]),
+  requireRole(USER_ROLES.MANAGER, USER_ROLES.ADMIN),
   incidentController.resolveIncident
 );
 

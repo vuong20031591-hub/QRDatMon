@@ -12,7 +12,7 @@ const { USER_ROLES } = require('../utils/constants');
 
 // All routes require authentication and manager/admin role
 router.use(authenticate);
-router.use(requireRole([USER_ROLES.MANAGER, USER_ROLES.ADMIN]));
+router.use(requireRole(USER_ROLES.MANAGER, USER_ROLES.ADMIN));
 
 /**
  * @route   GET /api/activity-logs
