@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.qrdatmon.customer.ui.auth.LoginScreen
 import com.qrdatmon.customer.ui.auth.OtpVerificationScreen
+import com.qrdatmon.customer.ui.menu.MenuScreen
 import com.qrdatmon.customer.ui.onboarding.OnboardingScreen
 import com.qrdatmon.customer.ui.qr.QrScanScreen
 import com.qrdatmon.customer.ui.qr.TableCodeInputScreen
@@ -37,6 +38,7 @@ class MainActivity : ComponentActivity() {
 fun QRDatMonCustomerApp() {
     var currentScreen by remember { mutableStateOf("splash") }
     var phoneNumber by remember { mutableStateOf("") }
+    var tableCode by remember { mutableStateOf("") }
 
     when (currentScreen) {
         "splash" -> {
@@ -80,20 +82,33 @@ fun QRDatMonCustomerApp() {
                 onManualInputClick = {
                     currentScreen = "table_code_input"
                 },
-                onQrScanned = { tableCode ->
-                    // TODO: Navigate to menu with table code
-                    currentScreen = "home"
+                onQrScanned = { code ->
+                    tableCode = code
+                    currentScreen = "menu"
                 }
             )
         }
         "table_code_input" -> {
             TableCodeInputScreen(
                 onBackClick = { currentScreen = "qr_scan" },
-                onConfirmClick = { tableCode ->
-                    // TODO: Navigate to menu with table code
-                    currentScreen = "home"
+                onConfirmClick = { code ->
+                    tableCode = code
+                    currentScreen = "menu"
                 },
                 onScanQrClick = { currentScreen = "qr_scan" }
+            )
+        }
+        "menu" -> {
+            MenuScreen(
+                tableCode = tableCode.ifEmpty { "A12" },
+                onBackClick = { currentScreen = "qr_scan" },
+                onCartClick = {
+                    // TODO: Navigate to cart
+                },
+                onOrderClick = {
+                    // TODO: Navigate to order confirmation
+                    currentScreen = "home"
+                }
             )
         }
         "home" -> {
