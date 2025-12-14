@@ -28,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.qrdatmon.customer.ui.components.AppBottomNavigation
 
 data class MenuItem(
     val id: String,
@@ -53,6 +54,7 @@ fun MenuScreen(
     var selectedCategory by remember { mutableStateOf("Tất cả") }
     var cartItemCount by remember { mutableStateOf(3) }
     var totalAmount by remember { mutableStateOf(188000) }
+    var selectedTab by remember { mutableStateOf("menu") }
 
     val categories = listOf("Tất cả", "Món chính", "Khai vị", "Lẩu & Báp xào")
     
@@ -200,8 +202,20 @@ fun MenuScreen(
         }
 
         // Bottom Navigation
-        BottomNavigation(
-            modifier = Modifier.align(Alignment.BottomCenter)
+        AppBottomNavigation(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            selectedTab = selectedTab,
+            onMenuClick = { selectedTab = "menu" },
+            onCartClick = {
+                selectedTab = "cart"
+                onCartClick()
+            },
+            onOrderStatusClick = {
+                selectedTab = "status"
+                // TODO: Navigate to order status
+            }
         )
     }
 }
@@ -809,82 +823,6 @@ private fun BottomOrderBar(
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 color = Color.White
-            )
-        }
-    }
-}
-
-@Composable
-private fun BottomNavigation(modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp)
-            .height(58.dp)
-            .background(Color(0xFFF5F5F5), RoundedCornerShape(999.dp))
-            .padding(horizontal = 4.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Menu Tab (Active)
-        Column(
-            modifier = Modifier
-                .background(Color.White, RoundedCornerShape(999.dp))
-                .padding(horizontal = 20.dp, vertical = 6.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Restaurant,
-                contentDescription = "Menu",
-                tint = Color(0xFFFF6F3C),
-                modifier = Modifier.size(18.dp)
-            )
-            Text(
-                text = "Menu",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFFFF6F3C)
-            )
-        }
-
-        // Cart Tab
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.ShoppingBag,
-                contentDescription = "Giỏ hàng",
-                tint = Color(0xFF666666),
-                modifier = Modifier.size(18.dp)
-            )
-            Text(
-                text = "Giỏ hàng",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF666666)
-            )
-        }
-
-        // Order Status Tab
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Receipt,
-                contentDescription = "Trạng thái",
-                tint = Color(0xFF666666),
-                modifier = Modifier.size(18.dp)
-            )
-            Text(
-                text = "Trạng thái",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF666666)
             )
         }
     }

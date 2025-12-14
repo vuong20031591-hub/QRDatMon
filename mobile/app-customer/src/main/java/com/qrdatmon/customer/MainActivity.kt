@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.qrdatmon.customer.ui.auth.LoginScreen
 import com.qrdatmon.customer.ui.auth.OtpVerificationScreen
+import com.qrdatmon.customer.ui.cart.CartScreen
 import com.qrdatmon.customer.ui.menu.MenuScreen
 import com.qrdatmon.customer.ui.onboarding.OnboardingScreen
 import com.qrdatmon.customer.ui.qr.QrScanScreen
@@ -103,10 +104,25 @@ fun QRDatMonCustomerApp() {
                 tableCode = tableCode.ifEmpty { "A12" },
                 onBackClick = { currentScreen = "qr_scan" },
                 onCartClick = {
-                    // TODO: Navigate to cart
+                    currentScreen = "cart"
                 },
                 onOrderClick = {
                     // TODO: Navigate to order confirmation
+                    currentScreen = "home"
+                }
+            )
+        }
+        "cart" -> {
+            CartScreen(
+                tableCode = tableCode.ifEmpty { "A12" },
+                onBackClick = { currentScreen = "menu" },
+                onCheckoutClick = {
+                    // TODO: Navigate to checkout/order confirmation
+                    currentScreen = "home"
+                },
+                onNavigateToMenu = { currentScreen = "menu" },
+                onNavigateToOrderStatus = {
+                    // TODO: Navigate to order status
                     currentScreen = "home"
                 }
             )
