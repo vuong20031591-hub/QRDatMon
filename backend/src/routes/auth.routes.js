@@ -10,7 +10,7 @@ const router = express.Router();
 const authController = require('../controllers/auth.controller');
 const { authenticate, verifyRefreshToken, restrictGuest } = require('../middleware/auth');
 const { authLimiter, loginLimiter } = require('../middleware/rateLimiter');
-const { validate, authSchemas } = require('../middleware/validator');
+const { validate, authSchemas, Joi } = require('../middleware/validator');
 
 /**
  * @route   POST /api/auth/google
@@ -22,6 +22,21 @@ router.post(
   loginLimiter,
   validate(authSchemas.googleLogin),
   authController.googleLogin
+);
+
+/**
+ * @route   POST /api/auth/login
+ * @desc    Login with email and password
+ * @access  Public
+ */
+router.post(
+  '/login',
+  loginLimiter,
+  validate(Joi.object({
+    email: Joi.string().email().required(),
+    password: Joi.string().min(1).required()
+  })),
+  authController.emailLogin
 );
 
 /**

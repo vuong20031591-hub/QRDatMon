@@ -150,9 +150,27 @@ const updateProfile = asyncHandler(async (req, res) => {
   return ok(res, { user: updatedUser }, "Profile updated successfully");
 });
 
+/**
+ * Email/Password Login Handler
+ * POST /api/auth/login
+ * Authenticates user with email and password
+ */
+const emailLogin = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    throw new ValidationError("Email và mật khẩu là bắt buộc");
+  }
+
+  const result = await authService.loginWithPassword(email, password);
+
+  return ok(res, result, "Đăng nhập thành công");
+});
+
 module.exports = {
   googleLogin,
   guestLogin,
+  emailLogin,
   refreshToken,
   logout,
   getMe,
