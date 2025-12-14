@@ -14,6 +14,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.qrdatmon.customer.ui.auth.LoginScreen
 import com.qrdatmon.customer.ui.auth.OtpVerificationScreen
 import com.qrdatmon.customer.ui.onboarding.OnboardingScreen
+import com.qrdatmon.customer.ui.qr.QrScanScreen
+import com.qrdatmon.customer.ui.qr.TableCodeInputScreen
 import com.qrdatmon.customer.ui.splash.SimpleSplashScreen
 import com.qrdatmon.customer.ui.theme.QRDatMonTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -46,7 +48,7 @@ fun QRDatMonCustomerApp() {
             OnboardingScreen(
                 onLoginClick = { currentScreen = "login" },
                 onGoogleSignInClick = { currentScreen = "google_signin" },
-                onSkipClick = { currentScreen = "home" }
+                onSkipClick = { currentScreen = "qr_scan" }
             )
         }
         "login" -> {
@@ -64,12 +66,34 @@ fun QRDatMonCustomerApp() {
                 phoneNumber = phoneNumber,
                 onBackClick = { currentScreen = "login" },
                 onVerifyClick = { otp ->
-                    // TODO: Verify OTP and navigate to home
-                    currentScreen = "home"
+                    // TODO: Verify OTP and navigate to QR scan
+                    currentScreen = "qr_scan"
                 },
                 onResendOtp = {
                     // TODO: Resend OTP logic
                 }
+            )
+        }
+        "qr_scan" -> {
+            QrScanScreen(
+                onBackClick = { currentScreen = "onboarding" },
+                onManualInputClick = {
+                    currentScreen = "table_code_input"
+                },
+                onQrScanned = { tableCode ->
+                    // TODO: Navigate to menu with table code
+                    currentScreen = "home"
+                }
+            )
+        }
+        "table_code_input" -> {
+            TableCodeInputScreen(
+                onBackClick = { currentScreen = "qr_scan" },
+                onConfirmClick = { tableCode ->
+                    // TODO: Navigate to menu with table code
+                    currentScreen = "home"
+                },
+                onScanQrClick = { currentScreen = "qr_scan" }
             )
         }
         "home" -> {
