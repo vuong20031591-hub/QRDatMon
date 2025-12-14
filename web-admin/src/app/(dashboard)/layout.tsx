@@ -1,0 +1,36 @@
+/**
+ * Dashboard Layout - With sidebar and header
+ */
+
+'use client';
+
+import { ThemeProvider } from 'next-themes';
+import { Sidebar } from '@/components/layout/sidebar';
+import { Header } from '@/components/layout/header';
+import { useSidebarStore } from '@/stores/sidebar-store';
+import { cn } from '@/lib/utils';
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { isCollapsed } = useSidebarStore();
+
+  return (
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <div className="min-h-screen bg-background">
+        <Sidebar />
+        <Header />
+        <main
+          className={cn(
+            'min-h-screen pt-16 transition-all duration-300',
+            isCollapsed ? 'pl-16' : 'pl-64'
+          )}
+        >
+          <div className="container mx-auto p-6">{children}</div>
+        </main>
+      </div>
+    </ThemeProvider>
+  );
+}

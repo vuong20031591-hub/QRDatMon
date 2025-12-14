@@ -91,6 +91,8 @@ const menuItemsData = {
   ]
 };
 
+const bcrypt = require('bcryptjs');
+
 // Admin user data
 const adminUserData = {
   email: 'admin@qrdatmon.com',
@@ -295,14 +297,27 @@ const seedSettings = async () => {
 const seedAdminUser = async () => {
   console.log('👤 Seeding admin user...');
 
+  // Hash password
+  const passwordHash = await bcrypt.hash('123456', 10);
+
   // Check if admin already exists
   let adminUser = await User.findOne({ email: adminUserData.email });
 
   if (!adminUser) {
-    adminUser = await User.create(adminUserData);
+    adminUser = await User.create({
+      ...adminUserData,
+      passwordHash
+    });
     console.log('✅ Created admin user');
+    console.log('   📧 Email: admin@qrdatmon.com');
+    console.log('   🔑 Password: 123456');
   } else {
-    console.log('ℹ️  Admin user already exists');
+    // Update password if user exists
+    adminUser.passwordHash = passwordHash;
+    await adminUser.save();
+    console.log('ℹ️  Admin user already exists - password updated');
+    console.log('   📧 Email: admin@qrdatmon.com');
+    console.log('   🔑 Password: 123456');
   }
 
   // Check if staff record exists

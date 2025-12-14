@@ -4,6 +4,7 @@
  * Requirements: 1.1, 1.5, 24.4
  */
 
+const bcrypt = require('bcryptjs');
 const { User, Staff } = require('../models');
 const { verifyIdToken, getUserByUid } = require('../config/firebase');
 const { generateAccessToken, generateRefreshToken } = require('../middleware/auth');
@@ -306,6 +307,47 @@ const validateStaffAccess = async (userId, allowedRoles = []) => {
   return staff;
 };
 
+/**
+ * Login with email and password
+ * @param {string} email - User email
+ * @param {string} password - User password
+ * @returns {Promise<Object>} User data with tokens
+ */
+const loginWithPassword = async (email, password) => {
+  // Find user by email with password field
+  const user = await User.findOne({ email: email.toLowerCase() }).select('+passwordHash');
+
+  if (!user) {
+    throw new AuthenticationError('Email hoặc mật khẩu không đúng');
+  }
+
+  if (!user.passwordHash) {
+    throw new AuthenticationError('Tài khoản này không hỗ trợ đăng nhập bằng mật khẩu');
+  }
+
+  // Verify password
+  const isMatch = await bcrypt.compare(password, user.passwordHash);
+  if (!isMatch) {
+    throw new AuthenticationError('Email hoặc mật khẩu không đúng');
+  }
+
+  // Check if user is active
+  if (!user.isActive) {
+    throw new AuthenticationError('Tài khoản đã bị vô hiệu hóa');
+  }
+
+  // Check if user is a staff member
+  const staff = await Staff.findOne({ user: user._id, isActive: true });
+
+  // Generate tokens
+  const tokens = generateTokenPair(user, staff);
+
+  return {
+    user: formatUserResponse(user, staff),
+    ...tokens
+  };
+};
+
 module.exports = {
   verifyFirebaseToken,
   createGuestUser,
@@ -313,6 +355,7 @@ module.exports = {
   getCurrentUser,
   linkGuestToFirebase,
   logoutUser,
+  loginWithPassword,
   generateTokenPair,
   formatUserResponse,
   validateStaffAccess
