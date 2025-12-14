@@ -78,7 +78,7 @@ fun CartScreen(
                 brush = Brush.verticalGradient(
                     colors = listOf(
                         Color.White,
-                        Color(0xBFFFEFE8)
+                        Color(0xB3FFEFE8)
                     )
                 )
             )
@@ -89,13 +89,14 @@ fun CartScreen(
                         Color.Transparent
                     ),
                     center = androidx.compose.ui.geometry.Offset(0.5f, 0f),
-                    radius = 1000f
+                    radius = 1500f
                 )
             )
-            .padding(horizontal = 16.dp, vertical = 10.dp)
     ) {
         Column(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp, vertical = 10.dp)
         ) {
             // Header
             CartHeader(
@@ -203,17 +204,18 @@ fun CartScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Bottom Navigation
-                AppBottomNavigation(
-                    selectedTab = "cart",
-                    onMenuClick = onNavigateToMenu,
-                    onCartClick = { /* Already on cart */ },
-                    onOrderStatusClick = onNavigateToOrderStatus
-                )
+                Spacer(modifier = Modifier.height(74.dp))
             }
         }
+
+        // Bottom Navigation
+        AppBottomNavigation(
+            modifier = Modifier.align(Alignment.BottomCenter),
+            selectedTab = "cart",
+            onMenuClick = onNavigateToMenu,
+            onCartClick = { /* Already on cart */ },
+            onOrderStatusClick = onNavigateToOrderStatus
+        )
     }
 }
 
@@ -323,6 +325,7 @@ private fun CartItemCard(
             .padding(10.dp)
     ) {
         Row(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             // Image

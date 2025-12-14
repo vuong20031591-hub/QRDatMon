@@ -1,7 +1,6 @@
 package com.qrdatmon.customer.ui.components
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -29,6 +28,7 @@ fun AppBottomNavigation(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp)
             .height(58.dp)
             .background(Color(0xFFF5F5F5), RoundedCornerShape(999.dp))
             .padding(horizontal = 4.dp, vertical = 4.dp),
@@ -46,17 +46,12 @@ fun AppBottomNavigation(
             animationSpec = tween(durationMillis = 300),
             label = "menuIconColor"
         )
-        val menuPaddingH by animateDpAsState(
-            targetValue = if (selectedTab == "menu") 20.dp else 12.dp,
-            animationSpec = tween(durationMillis = 300),
-            label = "menuPaddingH"
-        )
 
         Column(
             modifier = Modifier
                 .background(color = menuBgColor, shape = RoundedCornerShape(999.dp))
                 .clickable { onMenuClick() }
-                .padding(horizontal = menuPaddingH, vertical = 6.dp),
+                .padding(horizontal = 16.dp, vertical = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
@@ -85,17 +80,12 @@ fun AppBottomNavigation(
             animationSpec = tween(durationMillis = 300),
             label = "cartIconColor"
         )
-        val cartPaddingH by animateDpAsState(
-            targetValue = if (selectedTab == "cart") 20.dp else 12.dp,
-            animationSpec = tween(durationMillis = 300),
-            label = "cartPaddingH"
-        )
 
         Column(
             modifier = Modifier
                 .background(color = cartBgColor, shape = RoundedCornerShape(999.dp))
                 .clickable { onCartClick() }
-                .padding(horizontal = cartPaddingH, vertical = 6.dp),
+                .padding(horizontal = 16.dp, vertical = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
@@ -124,17 +114,12 @@ fun AppBottomNavigation(
             animationSpec = tween(durationMillis = 300),
             label = "statusIconColor"
         )
-        val statusPaddingH by animateDpAsState(
-            targetValue = if (selectedTab == "status") 20.dp else 12.dp,
-            animationSpec = tween(durationMillis = 300),
-            label = "statusPaddingH"
-        )
 
         Column(
             modifier = Modifier
                 .background(color = statusBgColor, shape = RoundedCornerShape(999.dp))
                 .clickable { onOrderStatusClick() }
-                .padding(horizontal = statusPaddingH, vertical = 6.dp),
+                .padding(horizontal = 16.dp, vertical = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {

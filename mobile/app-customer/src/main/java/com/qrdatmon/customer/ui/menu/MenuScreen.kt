@@ -203,9 +203,7 @@ fun MenuScreen(
 
         // Bottom Navigation
         AppBottomNavigation(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(horizontal = 20.dp, vertical = 8.dp),
+            modifier = Modifier.align(Alignment.BottomCenter),
             selectedTab = selectedTab,
             onMenuClick = { selectedTab = "menu" },
             onCartClick = {
