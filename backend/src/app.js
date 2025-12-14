@@ -11,6 +11,7 @@ const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
 const http = require("http");
+const path = require("path");
 
 // Import configuration
 const config = require("./config");
@@ -58,6 +59,12 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 if (config.rateLimit.enabled) {
   app.use(generalLimiter);
 }
+
+// Serve uploaded files statically with caching
+app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
+  maxAge: '1y',
+  etag: true
+}));
 
 // ============================================
 // Health Check Endpoints
@@ -168,6 +175,7 @@ const startServer = async () => {
       console.log(`📍 Port: ${PORT}`);
       console.log(`📍 API Base: http://localhost:${PORT}/api`);
       console.log(`📍 Health Check: http://localhost:${PORT}/health`);
+      console.log(`📍 API Docs: http://localhost:${PORT}/api/docs`);
       console.log("================================");
       console.log("");
     });

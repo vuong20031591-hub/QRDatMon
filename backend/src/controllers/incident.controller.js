@@ -5,7 +5,7 @@
  */
 
 const incidentService = require('../services/incident.service');
-const { successResponse } = require('../utils/response');
+const { ok, created, paginated } = require('../utils/response');
 
 /**
  * Report a new incident
@@ -20,7 +20,7 @@ const reportIncident = async (req, res, next) => {
       req.staff
     );
 
-    return successResponse(res, { incident }, 'Incident reported successfully', 201);
+    return created(res, { incident }, 'Incident reported successfully');
   } catch (error) {
     next(error);
   }
@@ -41,7 +41,7 @@ const resolveIncident = async (req, res, next) => {
       req.staff
     );
 
-    return successResponse(res, { incident }, 'Incident resolved successfully');
+    return ok(res, { incident }, 'Incident resolved successfully');
   } catch (error) {
     next(error);
   }
@@ -57,7 +57,7 @@ const startHandling = async (req, res, next) => {
 
     const incident = await incidentService.startHandlingIncident(id, req.staff);
 
-    return successResponse(res, { incident }, 'Started handling incident');
+    return ok(res, { incident }, 'Started handling incident');
   } catch (error) {
     next(error);
   }
@@ -73,7 +73,7 @@ const getIncident = async (req, res, next) => {
 
     const incident = await incidentService.getIncidentById(id);
 
-    return successResponse(res, { incident }, 'Incident retrieved successfully');
+    return ok(res, { incident }, 'Incident retrieved successfully');
   } catch (error) {
     next(error);
   }
@@ -115,7 +115,7 @@ const getIncidents = async (req, res, next) => {
 
     const result = await incidentService.getIncidentReports(filters, pagination);
 
-    return successResponse(res, result, 'Incidents retrieved successfully');
+    return paginated(res, result.incidents, { page: pagination.page, limit: pagination.limit, total: result.total }, 'Incidents retrieved successfully');
   } catch (error) {
     next(error);
   }
@@ -131,7 +131,7 @@ const getIncidentStats = async (req, res, next) => {
 
     const stats = await incidentService.getIncidentStats({ startDate, endDate });
 
-    return successResponse(res, { stats }, 'Incident statistics retrieved successfully');
+    return ok(res, { stats }, 'Incident statistics retrieved successfully');
   } catch (error) {
     next(error);
   }

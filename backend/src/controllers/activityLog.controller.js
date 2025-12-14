@@ -5,7 +5,7 @@
  */
 
 const activityLogService = require('../services/activityLog.service');
-const { successResponse } = require('../utils/response');
+const { ok, paginated } = require('../utils/response');
 
 /**
  * Get activity logs with filters
@@ -43,7 +43,7 @@ const getActivityLogs = async (req, res, next) => {
 
     const result = await activityLogService.getActivityLogs(filters, pagination);
 
-    return successResponse(res, result, 'Activity logs retrieved successfully');
+    return paginated(res, result.logs, { page: pagination.page, limit: pagination.limit, total: result.total }, 'Activity logs retrieved successfully');
   } catch (error) {
     next(error);
   }
@@ -59,7 +59,7 @@ const getEntityLogs = async (req, res, next) => {
 
     const logs = await activityLogService.getEntityActivityLogs(entityType, entityId);
 
-    return successResponse(res, { logs }, 'Entity activity logs retrieved successfully');
+    return ok(res, { logs }, 'Entity activity logs retrieved successfully');
   } catch (error) {
     next(error);
   }
@@ -83,7 +83,7 @@ const getStaffLogs = async (req, res, next) => {
 
     const result = await activityLogService.getStaffActivityLogs(staffId, pagination);
 
-    return successResponse(res, result, 'Staff activity logs retrieved successfully');
+    return paginated(res, result.logs, { page: pagination.page, limit: pagination.limit, total: result.total }, 'Staff activity logs retrieved successfully');
   } catch (error) {
     next(error);
   }
@@ -99,7 +99,7 @@ const getRecentActivities = async (req, res, next) => {
 
     const logs = await activityLogService.getRecentActivities(parseInt(limit) || 20);
 
-    return successResponse(res, { logs }, 'Recent activities retrieved successfully');
+    return ok(res, { logs }, 'Recent activities retrieved successfully');
   } catch (error) {
     next(error);
   }
