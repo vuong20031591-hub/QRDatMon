@@ -49,7 +49,8 @@ fun MenuScreen(
     tableCode: String,
     onBackClick: () -> Unit,
     onCartClick: () -> Unit,
-    onOrderClick: () -> Unit
+    onOrderClick: () -> Unit,
+    onNavigateToOrderStatus: () -> Unit = {}
 ) {
     var selectedCategory by remember { mutableStateOf("Tất cả") }
     var cartItemCount by remember { mutableStateOf(3) }
@@ -212,7 +213,7 @@ fun MenuScreen(
             },
             onOrderStatusClick = {
                 selectedTab = "status"
-                // TODO: Navigate to order status
+                onNavigateToOrderStatus()
             }
         )
     }

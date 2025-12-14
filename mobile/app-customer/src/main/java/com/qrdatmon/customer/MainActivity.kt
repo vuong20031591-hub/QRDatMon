@@ -16,6 +16,7 @@ import com.qrdatmon.customer.ui.auth.OtpVerificationScreen
 import com.qrdatmon.customer.ui.cart.CartScreen
 import com.qrdatmon.customer.ui.menu.MenuScreen
 import com.qrdatmon.customer.ui.onboarding.OnboardingScreen
+import com.qrdatmon.customer.ui.orderstatus.OrderStatusScreen
 import com.qrdatmon.customer.ui.qr.QrScanScreen
 import com.qrdatmon.customer.ui.qr.TableCodeInputScreen
 import com.qrdatmon.customer.ui.splash.SimpleSplashScreen
@@ -109,7 +110,8 @@ fun QRDatMonCustomerApp() {
                 onOrderClick = {
                     // TODO: Navigate to order confirmation
                     currentScreen = "home"
-                }
+                },
+                onNavigateToOrderStatus = { currentScreen = "order_status" }
             )
         }
         "cart" -> {
@@ -117,14 +119,18 @@ fun QRDatMonCustomerApp() {
                 tableCode = tableCode.ifEmpty { "A12" },
                 onBackClick = { currentScreen = "menu" },
                 onCheckoutClick = {
-                    // TODO: Navigate to checkout/order confirmation
-                    currentScreen = "home"
+                    currentScreen = "order_status"
                 },
                 onNavigateToMenu = { currentScreen = "menu" },
-                onNavigateToOrderStatus = {
-                    // TODO: Navigate to order status
-                    currentScreen = "home"
-                }
+                onNavigateToOrderStatus = { currentScreen = "order_status" }
+            )
+        }
+        "order_status" -> {
+            OrderStatusScreen(
+                tableCode = tableCode.ifEmpty { "A12" },
+                onBackClick = { currentScreen = "menu" },
+                onNavigateToMenu = { currentScreen = "menu" },
+                onNavigateToCart = { currentScreen = "cart" }
             )
         }
         "home" -> {
