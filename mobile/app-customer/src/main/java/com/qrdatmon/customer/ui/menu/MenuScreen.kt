@@ -245,73 +245,20 @@ private fun MenuHeader(
             }
         }
 
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        // Notification Icon
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .background(Color(0xFFF5F5F5), CircleShape)
+                .clickable { /* TODO */ },
+            contentAlignment = Alignment.Center
         ) {
-            // Search Icon
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .background(Color(0xFFF5F5F5), CircleShape)
-                    .clickable { /* TODO */ },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Search,
-                    contentDescription = "Search",
-                    tint = Color(0xFF222222),
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            // Notification Icon
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .background(Color(0xFFF5F5F5), CircleShape)
-                    .clickable { /* TODO */ },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Notifications,
-                    contentDescription = "Notifications",
-                    tint = Color(0xFF222222),
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            // Shopping Bag Icon with Badge
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .background(Color(0xFFF5F5F5), CircleShape)
-                    .clickable { onCartClick() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.ShoppingBag,
-                    contentDescription = "Cart",
-                    tint = Color(0xFF222222),
-                    modifier = Modifier.size(20.dp)
-                )
-                if (cartItemCount > 0) {
-                    Box(
-                        modifier = Modifier
-                            .size(16.dp)
-                            .align(Alignment.TopEnd)
-                            .offset(x = 4.dp, y = (-4).dp)
-                            .background(Color(0xFFEF4444), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = cartItemCount.toString(),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    }
-                }
-            }
+            Icon(
+                imageVector = Icons.Outlined.Notifications,
+                contentDescription = "Notifications",
+                tint = Color(0xFF222222),
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
@@ -901,7 +848,27 @@ private fun BottomNavigation(modifier: Modifier = Modifier) {
             )
         }
 
-        // Order Tab
+        // Cart Tab
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.ShoppingBag,
+                contentDescription = "Giỏ hàng",
+                tint = Color(0xFF666666),
+                modifier = Modifier.size(18.dp)
+            )
+            Text(
+                text = "Giỏ hàng",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF666666)
+            )
+        }
+
+        // Order Status Tab
         Column(
             modifier = Modifier.padding(horizontal = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -909,32 +876,12 @@ private fun BottomNavigation(modifier: Modifier = Modifier) {
         ) {
             Icon(
                 imageVector = Icons.Outlined.Receipt,
-                contentDescription = "Đơn hàng",
+                contentDescription = "Trạng thái",
                 tint = Color(0xFF666666),
                 modifier = Modifier.size(18.dp)
             )
             Text(
-                text = "Đơn hàng",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF666666)
-            )
-        }
-
-        // Account Tab
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Person,
-                contentDescription = "Tài khoản",
-                tint = Color(0xFF666666),
-                modifier = Modifier.size(18.dp)
-            )
-            Text(
-                text = "Tài khoản",
+                text = "Trạng thái",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
                 color = Color(0xFF666666)
