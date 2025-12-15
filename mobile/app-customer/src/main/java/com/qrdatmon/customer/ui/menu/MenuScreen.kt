@@ -51,7 +51,8 @@ fun MenuScreen(
     onCartClick: () -> Unit,
     onOrderClick: () -> Unit,
     onNavigateToOrderStatus: () -> Unit = {},
-    onViewAllPromos: () -> Unit = {}
+    onViewAllPromos: () -> Unit = {},
+    onMenuItemClick: (String) -> Unit = {}
 ) {
     var selectedCategory by remember { mutableStateOf("Tất cả") }
     var cartItemCount by remember { mutableStateOf(3) }
@@ -190,7 +191,7 @@ fun MenuScreen(
                 item {
                     MenuItemsSection(
                         menuItems = menuItems,
-                        onItemClick = { /* TODO */ }
+                        onItemClick = { item -> onMenuItemClick(item.name) }
                     )
                 }
             }
