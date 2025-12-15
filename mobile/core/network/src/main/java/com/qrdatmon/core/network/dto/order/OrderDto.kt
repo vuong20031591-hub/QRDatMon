@@ -1,6 +1,9 @@
-package com.qrdatmon.core.domain.model
+package com.qrdatmon.core.network.dto.order
 
-data class Order(
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class OrderResponse(
     val id: String,
     val billId: String,
     val userId: String,
@@ -8,14 +11,15 @@ data class Order(
     val status: String,
     val totalAmount: Double,
     val note: String? = null,
-    val items: List<OrderItem> = emptyList(),
+    val items: List<OrderItemResponse> = emptyList(),
     val createdAt: String,
     val confirmedAt: String? = null,
     val cancelledAt: String? = null,
     val cancelReason: String? = null
 )
 
-data class OrderItem(
+@Serializable
+data class OrderItemResponse(
     val id: String,
     val menuItemId: String,
     val menuItemName: String,
@@ -25,16 +29,23 @@ data class OrderItem(
     val subtotal: Double,
     val note: String? = null,
     val status: String,
-    val toppings: List<OrderTopping> = emptyList(),
+    val toppings: List<OrderToppingResponse> = emptyList(),
     val startedAt: String? = null,
     val completedAt: String? = null,
     val servedAt: String? = null
 )
 
-data class OrderTopping(
+@Serializable
+data class OrderToppingResponse(
     val id: String,
     val toppingId: String,
     val name: String,
     val quantity: Int = 1,
     val price: Double
+)
+
+@Serializable
+data class CreateOrderRequest(
+    val tableId: String,
+    val note: String? = null
 )
