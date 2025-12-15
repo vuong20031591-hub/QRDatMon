@@ -17,6 +17,7 @@ import com.qrdatmon.customer.ui.cart.CartScreen
 import com.qrdatmon.customer.ui.menu.MenuScreen
 import com.qrdatmon.customer.ui.onboarding.OnboardingScreen
 import com.qrdatmon.customer.ui.orderstatus.OrderStatusScreen
+import com.qrdatmon.customer.ui.payment.PaymentFailedScreen
 import com.qrdatmon.customer.ui.payment.PaymentScreen
 import com.qrdatmon.customer.ui.payment.PaymentSuccessScreen
 import com.qrdatmon.customer.ui.payment.VietQRPaymentScreen
@@ -175,6 +176,19 @@ fun QRDatMonCustomerApp() {
                 onBackClick = { currentScreen = "menu" },
                 onRateExperience = { /* TODO: Navigate to rating screen */ },
                 onViewOrderHistory = { /* TODO: Navigate to order history */ },
+                onNavigateToMenu = { currentScreen = "menu" },
+                onNavigateToCart = { currentScreen = "cart" },
+                onNavigateToOrderStatus = { currentScreen = "order_status" }
+            )
+        }
+        "payment_failed" -> {
+            PaymentFailedScreen(
+                tableCode = tableCode.ifEmpty { "A12" },
+                orderNumber = "#1248",
+                onBackClick = { currentScreen = "payment" },
+                onRetryPayment = { currentScreen = "payment" },
+                onTryVietQR = { currentScreen = "vietqr_payment" },
+                onCallStaff = { /* TODO: Call staff */ },
                 onNavigateToMenu = { currentScreen = "menu" },
                 onNavigateToCart = { currentScreen = "cart" },
                 onNavigateToOrderStatus = { currentScreen = "order_status" }
