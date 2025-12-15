@@ -47,7 +47,8 @@ fun OrderStatusScreen(
     onBackClick: () -> Unit,
     onNavigateToMenu: () -> Unit,
     onNavigateToCart: () -> Unit,
-    onNavigateToPayment: () -> Unit = {}
+    onNavigateToPayment: () -> Unit = {},
+    onCallStaff: () -> Unit = {}
 ) {
     Box(
         modifier = Modifier
@@ -116,7 +117,10 @@ fun OrderStatusScreen(
 
                 // Bottom Buttons
                 item {
-                    BottomButtonsSection(onNavigateToPayment = onNavigateToPayment)
+                    BottomButtonsSection(
+                        onNavigateToPayment = onNavigateToPayment,
+                        onCallStaff = onCallStaff
+                    )
                 }
 
                 // Help Banner
@@ -154,43 +158,22 @@ private fun OrderStatusHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            verticalArrangement = Arrangement.spacedBy(2.dp),
             modifier = Modifier.weight(1f)
         ) {
-            // Back Button
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .background(Color(0xFFF5F5F5), CircleShape)
-                    .clickable { onBackClick() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    tint = Color(0xFF222222),
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-
-            Column(
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                Text(
-                    text = "Trạng thái order",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF222222)
-                )
-                Text(
-                    text = "Bàn $tableCode • Order đang chuẩn bị",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color(0xFF666666)
-                )
-            }
+            Text(
+                text = "Trạng thái order",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF222222)
+            )
+            Text(
+                text = "Bàn $tableCode • Order đang chuẩn bị",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF666666)
+            )
         }
 
         // Notification Icon with Badge
@@ -742,7 +725,10 @@ private fun SuggestedItemCard(
 }
 
 @Composable
-private fun BottomButtonsSection(onNavigateToPayment: () -> Unit = {}) {
+private fun BottomButtonsSection(
+    onNavigateToPayment: () -> Unit = {},
+    onCallStaff: () -> Unit = {}
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -751,7 +737,7 @@ private fun BottomButtonsSection(onNavigateToPayment: () -> Unit = {}) {
     ) {
         // Call Staff Button
         OutlinedButton(
-            onClick = { /* TODO */ },
+            onClick = onCallStaff,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(44.dp),

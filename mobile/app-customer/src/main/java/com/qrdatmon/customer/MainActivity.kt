@@ -22,6 +22,7 @@ import com.qrdatmon.customer.ui.payment.PaymentScreen
 import com.qrdatmon.customer.ui.payment.PaymentSuccessScreen
 import com.qrdatmon.customer.ui.payment.VietQRPaymentScreen
 import com.qrdatmon.customer.ui.promo.PromoDetailScreen
+import com.qrdatmon.customer.ui.support.SupportStatusScreen
 import com.qrdatmon.customer.ui.qr.QrScanScreen
 import com.qrdatmon.customer.ui.qr.TableCodeInputScreen
 import com.qrdatmon.customer.ui.splash.SimpleSplashScreen
@@ -144,7 +145,8 @@ fun QRDatMonCustomerApp() {
                 onBackClick = { currentScreen = "menu" },
                 onNavigateToMenu = { currentScreen = "menu" },
                 onNavigateToCart = { currentScreen = "cart" },
-                onNavigateToPayment = { currentScreen = "payment" }
+                onNavigateToPayment = { currentScreen = "payment" },
+                onCallStaff = { currentScreen = "support_status" }
             )
         }
         "payment" -> {
@@ -188,10 +190,20 @@ fun QRDatMonCustomerApp() {
                 onBackClick = { currentScreen = "payment" },
                 onRetryPayment = { currentScreen = "payment" },
                 onTryVietQR = { currentScreen = "vietqr_payment" },
-                onCallStaff = { /* TODO: Call staff */ },
+                onCallStaff = { currentScreen = "support_status" },
                 onNavigateToMenu = { currentScreen = "menu" },
                 onNavigateToCart = { currentScreen = "cart" },
                 onNavigateToOrderStatus = { currentScreen = "order_status" }
+            )
+        }
+        "support_status" -> {
+            SupportStatusScreen(
+                tableCode = tableCode.ifEmpty { "A12" },
+                onBackClick = { currentScreen = "order_status" },
+                onViewOrderStatus = { currentScreen = "order_status" },
+                onNavigateToMenu = { currentScreen = "menu" },
+                onNavigateToCart = { currentScreen = "cart" },
+                onNavigateToSupport = { currentScreen = "support_status" }
             )
         }
         "home" -> {
