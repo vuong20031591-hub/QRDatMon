@@ -17,6 +17,7 @@ import com.qrdatmon.customer.ui.cart.CartScreen
 import com.qrdatmon.customer.ui.menu.MenuScreen
 import com.qrdatmon.customer.ui.onboarding.OnboardingScreen
 import com.qrdatmon.customer.ui.orderstatus.OrderStatusScreen
+import com.qrdatmon.customer.ui.payment.PaymentScreen
 import com.qrdatmon.customer.ui.promo.PromoDetailScreen
 import com.qrdatmon.customer.ui.qr.QrScanScreen
 import com.qrdatmon.customer.ui.qr.TableCodeInputScreen
@@ -139,7 +140,20 @@ fun QRDatMonCustomerApp() {
                 tableCode = tableCode.ifEmpty { "A12" },
                 onBackClick = { currentScreen = "menu" },
                 onNavigateToMenu = { currentScreen = "menu" },
-                onNavigateToCart = { currentScreen = "cart" }
+                onNavigateToCart = { currentScreen = "cart" },
+                onNavigateToPayment = { currentScreen = "payment" }
+            )
+        }
+        "payment" -> {
+            PaymentScreen(
+                tableCode = tableCode.ifEmpty { "A12" },
+                orderNumber = "#1248",
+                onBackClick = { currentScreen = "order_status" },
+                onPaymentConfirm = { /* TODO: Handle payment confirmation */ },
+                onPaymentViaQR = { /* TODO: Handle VietQR payment */ },
+                onNavigateToMenu = { currentScreen = "menu" },
+                onNavigateToCart = { currentScreen = "cart" },
+                onNavigateToOrderStatus = { currentScreen = "order_status" }
             )
         }
         "home" -> {

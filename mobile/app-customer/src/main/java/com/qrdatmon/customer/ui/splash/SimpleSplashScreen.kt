@@ -81,8 +81,10 @@ fun SimpleSplashScreen(
                     Image(
                         painter = painterResource(id = R.drawable.logo),
                         contentDescription = "QRDatMon Logo",
-                        modifier = Modifier.size(120.dp),
-                        contentScale = ContentScale.Fit
+                        modifier = Modifier
+                            .size(120.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
                     )
 
                     // Badge

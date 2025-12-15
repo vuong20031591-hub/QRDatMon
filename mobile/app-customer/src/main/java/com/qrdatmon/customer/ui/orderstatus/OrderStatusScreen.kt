@@ -46,7 +46,8 @@ fun OrderStatusScreen(
     tableCode: String,
     onBackClick: () -> Unit,
     onNavigateToMenu: () -> Unit,
-    onNavigateToCart: () -> Unit
+    onNavigateToCart: () -> Unit,
+    onNavigateToPayment: () -> Unit = {}
 ) {
     Box(
         modifier = Modifier
@@ -115,7 +116,7 @@ fun OrderStatusScreen(
 
                 // Bottom Buttons
                 item {
-                    BottomButtonsSection()
+                    BottomButtonsSection(onNavigateToPayment = onNavigateToPayment)
                 }
 
                 // Help Banner
@@ -741,7 +742,7 @@ private fun SuggestedItemCard(
 }
 
 @Composable
-private fun BottomButtonsSection() {
+private fun BottomButtonsSection(onNavigateToPayment: () -> Unit = {}) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -770,7 +771,7 @@ private fun BottomButtonsSection() {
 
         // Payment Button
         Button(
-            onClick = { /* TODO */ },
+            onClick = onNavigateToPayment,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
