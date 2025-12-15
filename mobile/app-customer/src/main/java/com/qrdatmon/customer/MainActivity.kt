@@ -14,6 +14,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.qrdatmon.customer.ui.auth.LoginScreen
 import com.qrdatmon.customer.ui.auth.OtpVerificationScreen
 import com.qrdatmon.customer.ui.cart.CartScreen
+import com.qrdatmon.customer.ui.menu.MenuItemDetailScreen
 import com.qrdatmon.customer.ui.menu.MenuScreen
 import com.qrdatmon.customer.ui.onboarding.OnboardingScreen
 import com.qrdatmon.customer.ui.orderstatus.OrderStatusScreen
@@ -47,6 +48,7 @@ fun QRDatMonCustomerApp() {
     var currentScreen by remember { mutableStateOf("splash") }
     var phoneNumber by remember { mutableStateOf("") }
     var tableCode by remember { mutableStateOf("") }
+    var selectedMenuItem by remember { mutableStateOf("") }
 
     when (currentScreen) {
         "splash" -> {
@@ -118,7 +120,25 @@ fun QRDatMonCustomerApp() {
                     currentScreen = "home"
                 },
                 onNavigateToOrderStatus = { currentScreen = "order_status" },
-                onViewAllPromos = { currentScreen = "promo_detail" }
+                onViewAllPromos = { currentScreen = "promo_detail" },
+                onMenuItemClick = { itemName ->
+                    selectedMenuItem = itemName
+                    currentScreen = "menu_item_detail"
+                }
+            )
+        }
+        "menu_item_detail" -> {
+            MenuItemDetailScreen(
+                itemName = selectedMenuItem,
+                tableCode = tableCode.ifEmpty { "A12" },
+                onBackClick = { currentScreen = "menu" },
+                onAddToCart = { quantity ->
+                    // TODO: Add to cart logic
+                    currentScreen = "cart"
+                },
+                onNavigateToMenu = { currentScreen = "menu" },
+                onNavigateToCart = { currentScreen = "cart" },
+                onNavigateToOrderStatus = { currentScreen = "order_status" }
             )
         }
         "promo_detail" -> {
