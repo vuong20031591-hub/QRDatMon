@@ -264,7 +264,7 @@ private fun OtpAppBranding() {
                 contentAlignment = Alignment.Center
             ) {
                 Image(
-                    painter = painterResource(id = android.R.drawable.ic_menu_gallery),
+                    painter = painterResource(id = com.qrdatmon.customer.R.drawable.logo),
                     contentDescription = "Logo",
                     modifier = Modifier.size(20.dp)
                 )

@@ -50,7 +50,8 @@ fun MenuScreen(
     onBackClick: () -> Unit,
     onCartClick: () -> Unit,
     onOrderClick: () -> Unit,
-    onNavigateToOrderStatus: () -> Unit = {}
+    onNavigateToOrderStatus: () -> Unit = {},
+    onViewAllPromos: () -> Unit = {}
 ) {
     var selectedCategory by remember { mutableStateOf("Tất cả") }
     var cartItemCount by remember { mutableStateOf(3) }
@@ -173,7 +174,7 @@ fun MenuScreen(
 
                 // Promotions Section
                 item {
-                    PromotionsSection()
+                    PromotionsSection(onViewAllClick = onViewAllPromos)
                 }
 
                 // Category Filter
@@ -387,7 +388,7 @@ private fun RestaurantBanner() {
 }
 
 @Composable
-private fun PromotionsSection() {
+private fun PromotionsSection(onViewAllClick: () -> Unit = {}) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -409,7 +410,8 @@ private fun PromotionsSection() {
                 text = "Xem tất cả",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color(0xFFFF6F3C)
+                color = Color(0xFFFF6F3C),
+                modifier = Modifier.clickable { onViewAllClick() }
             )
         }
 

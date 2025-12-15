@@ -17,6 +17,7 @@ import com.qrdatmon.customer.ui.cart.CartScreen
 import com.qrdatmon.customer.ui.menu.MenuScreen
 import com.qrdatmon.customer.ui.onboarding.OnboardingScreen
 import com.qrdatmon.customer.ui.orderstatus.OrderStatusScreen
+import com.qrdatmon.customer.ui.promo.PromoDetailScreen
 import com.qrdatmon.customer.ui.qr.QrScanScreen
 import com.qrdatmon.customer.ui.qr.TableCodeInputScreen
 import com.qrdatmon.customer.ui.splash.SimpleSplashScreen
@@ -111,7 +112,15 @@ fun QRDatMonCustomerApp() {
                     // TODO: Navigate to order confirmation
                     currentScreen = "home"
                 },
-                onNavigateToOrderStatus = { currentScreen = "order_status" }
+                onNavigateToOrderStatus = { currentScreen = "order_status" },
+                onViewAllPromos = { currentScreen = "promo_detail" }
+            )
+        }
+        "promo_detail" -> {
+            PromoDetailScreen(
+                onBackClick = { currentScreen = "menu" },
+                onApplyPromo = { currentScreen = "menu" },
+                onViewMenu = { currentScreen = "menu" }
             )
         }
         "cart" -> {
