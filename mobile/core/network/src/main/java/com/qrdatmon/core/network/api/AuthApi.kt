@@ -14,6 +14,11 @@ interface AuthApi {
         @Body request: GoogleAuthRequest
     ): ApiResponse<UserResponse>
 
+    @POST("auth/login")
+    suspend fun emailLogin(
+        @Body request: com.qrdatmon.core.network.dto.auth.EmailLoginRequest
+    ): ApiResponse<UserResponse>
+
     @GET("auth/verify")
     suspend fun verifyToken(): ApiResponse<UserResponse>
 

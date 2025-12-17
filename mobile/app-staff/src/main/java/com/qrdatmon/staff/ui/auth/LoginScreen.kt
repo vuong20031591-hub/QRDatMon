@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -20,17 +21,28 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
     onBackClick: () -> Unit,
-    onLoginSuccess: () -> Unit
+    onLoginSuccess: () -> Unit,
+    viewModel: LoginViewModel = hiltViewModel()
 ) {
-    var employeeId by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
-    var isLoading by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf("") }
+    
+    val uiState by viewModel.uiState.collectAsState()
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    
+    LaunchedEffect(uiState.isLoginSuccess) {
+        if (uiState.isLoginSuccess) {
+            onLoginSuccess()
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -70,22 +82,24 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(48.dp))
 
-            // Employee ID Field
+            // Email Field
             OutlinedTextField(
-                value = employeeId,
+                value = email,
                 onValueChange = { 
-                    employeeId = it
-                    errorMessage = ""
+                    email = it
+                    viewModel.clearError()
                 },
-                label = { Text("Mã nhân viên") },
-                placeholder = { Text("Nhập mã nhân viên") },
+                label = { Text("Email") },
+                placeholder = { Text("Nhập email") },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFF4CAF50),
                     focusedLabelColor = Color(0xFF4CAF50)
                 ),
-                singleLine = true
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                singleLine = true,
+                enabled = !uiState.isLoading
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -95,7 +109,7 @@ fun LoginScreen(
                 value = password,
                 onValueChange = { 
                     password = it
-                    errorMessage = ""
+                    viewModel.clearError()
                 },
                 label = { Text("Mật khẩu") },
                 placeholder = { Text("Nhập mật khẩu") },
@@ -124,13 +138,14 @@ fun LoginScreen(
                         )
                     }
                 },
-                singleLine = true
+                singleLine = true,
+                enabled = !uiState.isLoading
             )
 
             // Error Message
-            if (errorMessage.isNotEmpty()) {
+            if (uiState.errorMessage.isNotEmpty()) {
                 Text(
-                    text = errorMessage,
+                    text = uiState.errorMessage,
                     color = Color(0xFFD32F2F),
                     fontSize = 12.sp,
                     modifier = Modifier
@@ -144,8 +159,9 @@ fun LoginScreen(
             // Login Button
             Button(
                 onClick = {
-                    // Skip validation for testing
-                    onLoginSuccess()
+                    scope.launch {
+                        viewModel.login(email.trim(), password)
+                    }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -154,9 +170,9 @@ fun LoginScreen(
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF4CAF50)
                 ),
-                enabled = !isLoading
+                enabled = !uiState.isLoading && email.isNotBlank() && password.isNotBlank()
             ) {
-                if (isLoading) {
+                if (uiState.isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(24.dp),
                         color = Color.White,
@@ -167,39 +183,6 @@ fun LoginScreen(
                         text = "Đăng nhập",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Demo credentials
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFFF5F5F5)
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text(
-                        text = "Tài khoản demo:",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF666666)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Mã NV: NV001",
-                        fontSize = 12.sp,
-                        color = Color(0xFF666666)
-                    )
-                    Text(
-                        text = "Mật khẩu: 123456",
-                        fontSize = 12.sp,
-                        color = Color(0xFF666666)
                     )
                 }
             }

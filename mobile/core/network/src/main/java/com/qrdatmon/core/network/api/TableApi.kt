@@ -12,6 +12,16 @@ import retrofit2.http.Query
 
 interface TableApi {
 
+    @GET("tables")
+    suspend fun getAllTables(
+        @Query("active") active: Boolean? = null
+    ): ApiResponse<List<TableResponse>>
+
+    @GET("tables/{tableId}")
+    suspend fun getTableById(
+        @Path("tableId") tableId: String
+    ): ApiResponse<TableResponse>
+
     @GET("tables/qr/{qrToken}")
     suspend fun getTableByQR(
         @Path("qrToken") qrToken: String

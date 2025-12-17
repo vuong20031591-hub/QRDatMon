@@ -49,23 +49,18 @@ sealed class BottomNavItem(
 fun MainScreen(
     onLogout: () -> Unit,
     onTableClick: (com.qrdatmon.staff.ui.table.Table) -> Unit = {},
-    shouldSwitchToOrderTab: Boolean = false,
-    onOrderTabSwitched: () -> Unit = {}
+    onNavigateToPersonalInfo: () -> Unit = {},
+    onNavigateToAttendanceHistory: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {},
+    initialTab: Int = 0,
+    authManager: com.qrdatmon.staff.util.AuthManager
 ) {
-    var selectedItem by remember { mutableStateOf(0) }
+    var selectedItem by remember { mutableStateOf(initialTab) }
     val items = listOf(
         BottomNavItem.Tables,
         BottomNavItem.Orders,
         BottomNavItem.Profile
     )
-
-    // Switch to order tab when requested
-    LaunchedEffect(shouldSwitchToOrderTab) {
-        if (shouldSwitchToOrderTab) {
-            selectedItem = 1 // Switch to Orders tab
-            onOrderTabSwitched()
-        }
-    }
 
     Scaffold(
         bottomBar = {
@@ -102,7 +97,13 @@ fun MainScreen(
         when (selectedItem) {
             0 -> TableListScreen(onTableClick = onTableClick)
             1 -> OrderListScreen()
-            2 -> ProfileScreen(onLogout = onLogout)
+            2 -> ProfileScreen(
+                onLogout = onLogout,
+                onNavigateToPersonalInfo = onNavigateToPersonalInfo,
+                onNavigateToAttendanceHistory = onNavigateToAttendanceHistory,
+                onNavigateToSettings = onNavigateToSettings,
+                authManager = authManager
+            )
         }
     }
 }

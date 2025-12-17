@@ -23,12 +23,29 @@ import java.util.*
 
 @Composable
 fun ProfileScreen(
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onNavigateToPersonalInfo: () -> Unit = {},
+    onNavigateToAttendanceHistory: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {},
+    authManager: com.qrdatmon.staff.util.AuthManager
 ) {
     var showCheckInDialog by remember { mutableStateOf(false) }
     var showCheckOutDialog by remember { mutableStateOf(false) }
     var isCheckedIn by remember { mutableStateOf(false) }
     var checkInTime by remember { mutableStateOf<String?>(null) }
+    
+    // Get user info from AuthManager
+    val userName = authManager.getUserName() ?: "Nhân viên"
+    val employeeCode = authManager.getEmployeeCode() ?: "N/A"
+    val staffRole = when(authManager.getStaffRole()) {
+        "waiter" -> "Nhân viên phục vụ"
+        "cashier" -> "Thu ngân"
+        "kitchen" -> "Bếp"
+        "manager" -> "Quản lý"
+        "admin" -> "Quản trị viên"
+        else -> "Nhân viên"
+    }
+    val initials = userName.split(" ").takeLast(2).joinToString("") { it.first().toString() }.uppercase()
 
     LazyColumn(
         modifier = Modifier
@@ -54,7 +71,7 @@ fun ProfileScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "NV",
+                            text = initials,
                             fontSize = 32.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
@@ -64,14 +81,14 @@ fun ProfileScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
-                        text = "Nguyễn Văn A",
+                        text = userName,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF222222)
                     )
 
                     Text(
-                        text = "Mã NV: NV001",
+                        text = "Mã NV: $employeeCode",
                         fontSize = 14.sp,
                         color = Color(0xFF666666),
                         modifier = Modifier.padding(top = 4.dp)
@@ -87,7 +104,7 @@ fun ProfileScreen(
                             .padding(horizontal = 12.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = "Nhân viên phục vụ",
+                            text = staffRole,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color(0xFF4CAF50)
@@ -222,25 +239,19 @@ fun ProfileScreen(
                     ProfileMenuItem(
                         icon = Icons.Default.Person,
                         title = "Thông tin cá nhân",
-                        onClick = { /* TODO */ }
+                        onClick = onNavigateToPersonalInfo
                     )
                     Divider()
                     ProfileMenuItem(
                         icon = Icons.Default.Schedule,
                         title = "Lịch sử chấm công",
-                        onClick = { /* TODO */ }
-                    )
-                    Divider()
-                    ProfileMenuItem(
-                        icon = Icons.Default.Assessment,
-                        title = "Báo cáo ca làm",
-                        onClick = { /* TODO */ }
+                        onClick = onNavigateToAttendanceHistory
                     )
                     Divider()
                     ProfileMenuItem(
                         icon = Icons.Default.Settings,
                         title = "Cài đặt",
-                        onClick = { /* TODO */ }
+                        onClick = onNavigateToSettings
                     )
                 }
             }
