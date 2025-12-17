@@ -1,5 +1,6 @@
 package com.qrdatmon.staff.ui.table
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -48,6 +49,7 @@ fun TableListScreen(
 ) {
     var selectedArea by remember { mutableStateOf("all") }
     var showAreaFilter by remember { mutableStateOf(false) }
+    var selectedStatuses by remember { mutableStateOf(setOf<TableStatus>()) }
     
     val uiState by viewModel.uiState.collectAsState()
 
@@ -62,11 +64,14 @@ fun TableListScreen(
         areaMap.toList()
     }
 
-    val filteredTables = if (selectedArea == "all") {
-        uiState.tables
-    } else {
-        uiState.tables.filter { it.areaId == selectedArea }
-    }
+    val filteredTables = uiState.tables
+        .filter { table ->
+            // Filter by area
+            val matchesArea = selectedArea == "all" || table.areaId == selectedArea
+            // Filter by status (if any status is selected)
+            val matchesStatus = selectedStatuses.isEmpty() || table.status in selectedStatuses
+            matchesArea && matchesStatus
+        }
 
     Column(
         modifier = Modifier
@@ -120,17 +125,41 @@ fun TableListScreen(
                     StatusLegend(
                         color = Color(0xFF4CAF50),
                         label = "Trống",
-                        count = filteredTables.count { it.status == TableStatus.AVAILABLE }
+                        count = uiState.tables.count { it.status == TableStatus.AVAILABLE },
+                        isSelected = TableStatus.AVAILABLE in selectedStatuses,
+                        onClick = {
+                            selectedStatuses = if (TableStatus.AVAILABLE in selectedStatuses) {
+                                selectedStatuses - TableStatus.AVAILABLE
+                            } else {
+                                selectedStatuses + TableStatus.AVAILABLE
+                            }
+                        }
                     )
                     StatusLegend(
                         color = Color(0xFFFF9800),
                         label = "Đang dùng",
-                        count = filteredTables.count { it.status == TableStatus.OCCUPIED }
+                        count = uiState.tables.count { it.status == TableStatus.OCCUPIED },
+                        isSelected = TableStatus.OCCUPIED in selectedStatuses,
+                        onClick = {
+                            selectedStatuses = if (TableStatus.OCCUPIED in selectedStatuses) {
+                                selectedStatuses - TableStatus.OCCUPIED
+                            } else {
+                                selectedStatuses + TableStatus.OCCUPIED
+                            }
+                        }
                     )
                     StatusLegend(
                         color = Color(0xFF2196F3),
                         label = "Đã đặt",
-                        count = filteredTables.count { it.status == TableStatus.RESERVED }
+                        count = uiState.tables.count { it.status == TableStatus.RESERVED },
+                        isSelected = TableStatus.RESERVED in selectedStatuses,
+                        onClick = {
+                            selectedStatuses = if (TableStatus.RESERVED in selectedStatuses) {
+                                selectedStatuses - TableStatus.RESERVED
+                            } else {
+                                selectedStatuses + TableStatus.RESERVED
+                            }
+                        }
                     )
                 }
             }
@@ -270,22 +299,41 @@ fun TableListScreen(
 private fun StatusLegend(
     color: Color,
     label: String,
-    count: Int
+    count: Int,
+    isSelected: Boolean = false,
+    onClick: () -> Unit = {}
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    Surface(
+        modifier = Modifier.clickable { onClick() },
+        shape = RoundedCornerShape(8.dp),
+        color = if (isSelected) color.copy(alpha = 0.15f) else Color.Transparent,
+        border = if (isSelected) androidx.compose.foundation.BorderStroke(1.dp, color) else null
     ) {
-        Box(
-            modifier = Modifier
-                .size(12.dp)
-                .background(color, RoundedCornerShape(2.dp))
-        )
-        Text(
-            text = "$label ($count)",
-            fontSize = 12.sp,
-            color = Color(0xFF666666)
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .background(color, RoundedCornerShape(2.dp))
+            )
+            Text(
+                text = "$label ($count)",
+                fontSize = 12.sp,
+                color = if (isSelected) color else Color(0xFF666666),
+                fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal
+            )
+            if (isSelected) {
+                Icon(
+                    imageVector = Icons.Default.FilterList,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = color
+                )
+            }
+        }
     }
 }
 
