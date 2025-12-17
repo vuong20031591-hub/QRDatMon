@@ -4,8 +4,10 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class TableResponse(
-    val id: String,
-    val areaId: String,
+    val id: String? = null,
+    @kotlinx.serialization.SerialName("_id")
+    val mongoId: String? = null,
+    val area: AreaResponse,
     val tableNumber: String,
     val qrCodeUrl: String? = null,
     val qrToken: String,
@@ -13,7 +15,23 @@ data class TableResponse(
     val status: String,
     val isActive: Boolean = true,
     val currentBillId: String? = null
-)
+) {
+    // Helper to get the actual ID
+    fun getTableId(): String = id ?: mongoId ?: ""
+}
+
+@Serializable
+data class AreaResponse(
+    val id: String? = null,
+    @kotlinx.serialization.SerialName("_id")
+    val mongoId: String? = null,
+    val name: String,
+    val floor: Int? = null,
+    val description: String? = null
+) {
+    // Helper to get the actual ID
+    fun getAreaId(): String = id ?: mongoId ?: ""
+}
 
 @Serializable
 data class TableSessionResponse(

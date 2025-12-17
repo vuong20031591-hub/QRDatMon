@@ -1,8 +1,7 @@
 package com.qrdatmon.core.network.interceptor
 
-import com.google.firebase.auth.FirebaseAuth
+import com.qrdatmon.core.network.auth.TokenProvider
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.tasks.await
 import okhttp3.Interceptor
 import okhttp3.Response
 import timber.log.Timber
@@ -11,7 +10,7 @@ import javax.inject.Singleton
 
 @Singleton
 class AuthInterceptor @Inject constructor(
-    private val firebaseAuth: FirebaseAuth
+    private val tokenProvider: TokenProvider
 ) : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
@@ -23,12 +22,12 @@ class AuthInterceptor @Inject constructor(
             return chain.proceed(originalRequest)
         }
 
-        // Get Firebase ID token
+        // Get token from provider
         val token = runBlocking {
             try {
-                firebaseAuth.currentUser?.getIdToken(false)?.await()?.token
+                tokenProvider.getToken()
             } catch (e: Exception) {
-                Timber.e(e, "Failed to get Firebase token")
+                Timber.e(e, "Failed to get token")
                 null
             }
         }

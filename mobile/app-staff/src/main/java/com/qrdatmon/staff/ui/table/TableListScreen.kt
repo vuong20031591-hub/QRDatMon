@@ -21,6 +21,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.qrdatmon.staff.R
 
 data class Table(
@@ -42,38 +43,29 @@ enum class TableStatus {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TableListScreen(
+    viewModel: TableViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     onTableClick: (Table) -> Unit = {}
 ) {
     var selectedArea by remember { mutableStateOf("all") }
     var showAreaFilter by remember { mutableStateOf(false) }
+    
+    val uiState by viewModel.uiState.collectAsState()
 
-    // Mock data
-    val areas = listOf(
-        "all" to "Tất cả",
-        "area1" to "Tầng 1",
-        "area2" to "Tầng 2",
-        "area3" to "VIP"
-    )
-
-    val tables = remember {
-        listOf(
-            Table("1", "A01", "area1", "Tầng 1", 4, TableStatus.AVAILABLE),
-            Table("2", "A02", "area1", "Tầng 1", 4, TableStatus.OCCUPIED),
-            Table("3", "A03", "area1", "Tầng 1", 2, TableStatus.AVAILABLE),
-            Table("4", "A04", "area1", "Tầng 1", 6, TableStatus.RESERVED),
-            Table("5", "B01", "area2", "Tầng 2", 4, TableStatus.AVAILABLE),
-            Table("6", "B02", "area2", "Tầng 2", 4, TableStatus.OCCUPIED),
-            Table("7", "B03", "area2", "Tầng 2", 8, TableStatus.CLEANING),
-            Table("8", "B04", "area2", "Tầng 2", 4, TableStatus.AVAILABLE),
-            Table("9", "V01", "area3", "VIP", 10, TableStatus.OCCUPIED),
-            Table("10", "V02", "area3", "VIP", 12, TableStatus.AVAILABLE)
-        )
+    // Get unique areas from tables
+    val areas = remember(uiState.tables) {
+        val areaMap = mutableMapOf("all" to "Tất cả")
+        uiState.tables.forEach { table ->
+            if (!areaMap.containsKey(table.areaId)) {
+                areaMap[table.areaId] = table.areaName
+            }
+        }
+        areaMap.toList()
     }
 
     val filteredTables = if (selectedArea == "all") {
-        tables
+        uiState.tables
     } else {
-        tables.filter { it.areaId == selectedArea }
+        uiState.tables.filter { it.areaId == selectedArea }
     }
 
     Column(
@@ -144,18 +136,79 @@ fun TableListScreen(
             }
         }
 
-        // Table Grid - 2 columns per row
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            contentPadding = PaddingValues(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(filteredTables) { table ->
-                TableCard(
-                    table = table,
-                    onClick = { onTableClick(table) }
-                )
+        // Content
+        Box(modifier = Modifier.fillMaxSize()) {
+            when {
+                uiState.isLoading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = Color(0xFF4CAF50)
+                        )
+                    }
+                }
+                uiState.errorMessage.isNotEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "Lỗi tải dữ liệu",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFFD32F2F)
+                            )
+                            Text(
+                                text = uiState.errorMessage,
+                                fontSize = 14.sp,
+                                color = Color(0xFF666666),
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                            Button(
+                                onClick = { viewModel.loadTables() },
+                                modifier = Modifier.padding(top = 16.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF4CAF50)
+                                )
+                            ) {
+                                Text("Thử lại")
+                            }
+                        }
+                    }
+                }
+                filteredTables.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Không có bàn nào",
+                            fontSize = 16.sp,
+                            color = Color(0xFF666666)
+                        )
+                    }
+                }
+                else -> {
+                    // Table Grid - 2 columns per row
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        contentPadding = PaddingValues(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(filteredTables) { table ->
+                            TableCard(
+                                table = table,
+                                onClick = { onTableClick(table) }
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -258,7 +311,7 @@ private fun TableCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(1.2f)
+            .aspectRatio(1.0f)
             .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
@@ -271,7 +324,7 @@ private fun TableCard(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -279,24 +332,24 @@ private fun TableCard(
             Image(
                 painter = painterResource(id = R.drawable.table),
                 contentDescription = "Table icon",
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier.size(40.dp),
                 colorFilter = ColorFilter.tint(textColor)
             )
             
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             
             Text(
                 text = table.number,
-                fontSize = 20.sp,
+                fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = textColor
             )
             
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(3.dp))
             
             Text(
                 text = statusText,
-                fontSize = 13.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
                 color = textColor
             )
@@ -305,7 +358,7 @@ private fun TableCard(
             
             Text(
                 text = "${table.capacity} chỗ",
-                fontSize = 11.sp,
+                fontSize = 10.sp,
                 color = textColor.copy(alpha = 0.7f)
             )
         }

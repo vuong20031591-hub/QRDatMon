@@ -2,6 +2,8 @@ package com.qrdatmon.core.network.api
 
 import com.qrdatmon.core.network.dto.ApiResponse
 import com.qrdatmon.core.network.dto.table.JoinTableRequest
+import com.qrdatmon.core.network.dto.table.TableDetailResponse
+import com.qrdatmon.core.network.dto.table.TableListResponse
 import com.qrdatmon.core.network.dto.table.TableResponse
 import com.qrdatmon.core.network.dto.table.TableSessionResponse
 import retrofit2.http.Body
@@ -15,12 +17,12 @@ interface TableApi {
     @GET("tables")
     suspend fun getAllTables(
         @Query("active") active: Boolean? = null
-    ): ApiResponse<List<TableResponse>>
+    ): ApiResponse<TableListResponse>
 
     @GET("tables/{tableId}")
     suspend fun getTableById(
         @Path("tableId") tableId: String
-    ): ApiResponse<TableResponse>
+    ): ApiResponse<TableDetailResponse>
 
     @GET("tables/qr/{qrToken}")
     suspend fun getTableByQR(

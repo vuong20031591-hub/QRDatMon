@@ -18,21 +18,9 @@ class OrderRepositoryImpl @Inject constructor(
 ) : OrderRepository {
 
     override fun getOrdersByTable(tableId: String): Flow<List<Order>> = flow {
-        val result = safeApiCall {
-            orderApi.getTableOrders(tableId)
-        }
-        
-        when (result) {
-            is NetworkResult.Success -> {
-                val orders = result.data.map { it.toOrder() }
-                emit(orders)
-            }
-            is NetworkResult.Error -> {
-                // Emit empty list on error
-                emit(emptyList())
-            }
-            is NetworkResult.Loading -> {}
-        }
+        // Note: This method is deprecated, use getOrdersByBill instead
+        // For now, return empty list
+        emit(emptyList())
     }
 
     override fun getOrdersByCustomer(customerId: String): Flow<List<Order>> = flow {
@@ -42,7 +30,7 @@ class OrderRepositoryImpl @Inject constructor(
         
         when (result) {
             is NetworkResult.Success -> {
-                val orders = result.data
+                val orders = result.data.orders
                     .filter { it.userId == customerId }
                     .map { it.toOrder() }
                 emit(orders)
@@ -113,7 +101,7 @@ class OrderRepositoryImpl @Inject constructor(
         
         when (result) {
             is NetworkResult.Success -> {
-                val orders = result.data.map { it.toOrder() }
+                val orders = result.data.orders.map { it.toOrder() }
                 emit(orders)
             }
             is NetworkResult.Error -> {

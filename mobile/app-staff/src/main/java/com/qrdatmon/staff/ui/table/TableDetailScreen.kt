@@ -52,42 +52,17 @@ data class OrderItemDetail(
 fun TableDetailScreen(
     table: Table,
     onBackClick: () -> Unit,
-    onCheckout: () -> Unit
+    onCheckout: () -> Unit,
+    viewModel: TableDetailViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
-    // Mock data
-    val tableDetail = remember {
-        TableDetail(
-            table = table,
-            customer = if (table.status == TableStatus.OCCUPIED) {
-                Customer(
-                    name = "Nguyễn Văn A",
-                    phone = "0901234567",
-                    isGuest = false
-                )
-            } else null,
-            orderItems = if (table.status == TableStatus.OCCUPIED) {
-                listOf(
-                    OrderItemDetail(
-                        "1", "Phở bò đặc biệt", 2, 65000.0, 130000.0,
-                        "Không hành", "served"
-                    ),
-                    OrderItemDetail(
-                        "2", "Cà phê sữa", 2, 25000.0, 50000.0,
-                        null, "served"
-                    ),
-                    OrderItemDetail(
-                        "3", "Bánh flan", 1, 20000.0, 20000.0,
-                        null, "preparing"
-                    )
-                )
-            } else emptyList(),
-            subtotal = 200000.0,
-            serviceCharge = 20000.0,
-            vat = 22000.0,
-            total = 242000.0,
-            orderTime = "10:30"
-        )
+    val uiState by viewModel.uiState.collectAsState()
+    
+    // Load table detail when screen opens
+    LaunchedEffect(table.id) {
+        viewModel.loadTableDetail(table.id)
     }
+    
+    val tableDetail = uiState.tableDetail
 
     Scaffold(
         topBar = {
@@ -120,40 +95,100 @@ fun TableDetailScreen(
             )
         }
     ) { paddingValues ->
-        if (table.status == TableStatus.AVAILABLE) {
-            // Empty state
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
+        when {
+            uiState.isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.EventAvailable,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = Color(0xFF4CAF50)
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "Bàn đang trống",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF222222)
-                    )
-                    Text(
-                        text = "Chưa có khách sử dụng",
-                        fontSize = 14.sp,
-                        color = Color(0xFF666666),
-                        modifier = Modifier.padding(top = 4.dp)
+                    CircularProgressIndicator(
+                        color = Color(0xFF4CAF50)
                     )
                 }
             }
-        } else {
-            LazyColumn(
+            uiState.errorMessage.isNotEmpty() -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Lỗi tải dữ liệu",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFFD32F2F)
+                        )
+                        Text(
+                            text = uiState.errorMessage,
+                            fontSize = 14.sp,
+                            color = Color(0xFF666666),
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                        Button(
+                            onClick = { viewModel.loadTableDetail(table.id) },
+                            modifier = Modifier.padding(top = 16.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF4CAF50)
+                            )
+                        ) {
+                            Text("Thử lại")
+                        }
+                    }
+                }
+            }
+            tableDetail == null -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        color = Color(0xFF4CAF50)
+                    )
+                }
+            }
+            tableDetail.table.status == TableStatus.AVAILABLE -> {
+                // Empty state
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.EventAvailable,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = Color(0xFF4CAF50)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Bàn đang trống",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF222222)
+                        )
+                        Text(
+                            text = "Chưa có khách sử dụng",
+                            fontSize = 14.sp,
+                            color = Color(0xFF666666),
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                }
+            }
+            else -> {
+                LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color(0xFFF5F5F5))
@@ -308,6 +343,7 @@ fun TableDetailScreen(
 
                 item { Spacer(modifier = Modifier.height(16.dp)) }
             }
+        }
         }
     }
 }

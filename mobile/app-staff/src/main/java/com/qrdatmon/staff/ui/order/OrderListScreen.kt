@@ -41,72 +41,41 @@ enum class OrderItemStatus {
 }
 
 @Composable
-fun OrderListScreen() {
+fun OrderListScreen(
+    viewModel: OrderViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+) {
     var selectedTab by remember { mutableStateOf(0) }
     val tabs = listOf("Chờ xác nhận", "Đang xử lý", "Hoàn thành")
+    
+    val uiState by viewModel.uiState.collectAsState()
 
-    // Mock data
-    val orders = remember {
-        listOf(
-            OrderItem(
-                "1", "#1001", "A01",
-                listOf("Phở bò", "Cà phê sữa"),
-                125000.0,
-                OrderItemStatus.PENDING,
-                "10:30",
-                "Nguyễn Văn A"
-            ),
-            OrderItem(
-                "2", "#1002", "B02",
-                listOf("Bún chả", "Trà đá"),
-                85000.0,
-                OrderItemStatus.CONFIRMED,
-                "10:45",
-                null
-            ),
-            OrderItem(
-                "3", "#1003", "A03",
-                listOf("Cơm gà", "Nước cam"),
-                95000.0,
-                OrderItemStatus.PREPARING,
-                "11:00",
-                "Trần Thị B"
-            ),
-            OrderItem(
-                "4", "#1004", "V01",
-                listOf("Lẩu hải sản", "Bia Heineken"),
-                450000.0,
-                OrderItemStatus.READY,
-                "11:15",
-                "Lê Văn C"
-            ),
-            OrderItem(
-                "5", "#1005", "B03",
-                listOf("Bánh mì", "Cà phê đen"),
-                45000.0,
-                OrderItemStatus.SERVED,
-                "09:30",
-                null
-            )
-        )
+    // Load orders based on selected tab
+    LaunchedEffect(selectedTab) {
+        val status = when (selectedTab) {
+            0 -> "pending"
+            1 -> null // Load all, filter in UI
+            2 -> null // Load all, filter in UI
+            else -> null
+        }
+        viewModel.loadOrders(status)
     }
 
     val filteredOrders = when (selectedTab) {
-        0 -> orders.filter { it.status == OrderItemStatus.PENDING }
-        1 -> orders.filter { 
+        0 -> uiState.orders.filter { it.status == OrderItemStatus.PENDING }
+        1 -> uiState.orders.filter { 
             it.status in listOf(
                 OrderItemStatus.CONFIRMED,
                 OrderItemStatus.PREPARING,
                 OrderItemStatus.READY
             )
         }
-        2 -> orders.filter { 
+        2 -> uiState.orders.filter { 
             it.status in listOf(
                 OrderItemStatus.SERVED,
                 OrderItemStatus.COMPLETED
             )
         }
-        else -> orders
+        else -> uiState.orders
     }
 
     Column(
@@ -156,34 +125,81 @@ fun OrderListScreen() {
         }
 
         // Order List
-        if (filteredOrders.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "Không có đơn hàng",
-                        fontSize = 16.sp,
-                        color = Color(0xFF666666)
-                    )
-                    Text(
-                        text = "Danh sách đơn hàng sẽ hiển thị ở đây",
-                        fontSize = 12.sp,
-                        color = Color(0xFF999999),
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
+        Box(modifier = Modifier.fillMaxSize()) {
+            when {
+                uiState.isLoading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = Color(0xFF4CAF50)
+                        )
+                    }
                 }
-            }
-        } else {
-            LazyColumn(
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(filteredOrders) { order ->
-                    OrderCard(order = order)
+                uiState.errorMessage.isNotEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "Lỗi tải dữ liệu",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFFD32F2F)
+                            )
+                            Text(
+                                text = uiState.errorMessage,
+                                fontSize = 14.sp,
+                                color = Color(0xFF666666),
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                            Button(
+                                onClick = { viewModel.loadOrders() },
+                                modifier = Modifier.padding(top = 16.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF4CAF50)
+                                )
+                            ) {
+                                Text("Thử lại")
+                            }
+                        }
+                    }
+                }
+                filteredOrders.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "Không có đơn hàng",
+                                fontSize = 16.sp,
+                                color = Color(0xFF666666)
+                            )
+                            Text(
+                                text = "Danh sách đơn hàng sẽ hiển thị ở đây",
+                                fontSize = 12.sp,
+                                color = Color(0xFF999999),
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                    }
+                }
+                else -> {
+                    LazyColumn(
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(filteredOrders) { order ->
+                            OrderCard(order = order)
+                        }
+                    }
                 }
             }
         }
