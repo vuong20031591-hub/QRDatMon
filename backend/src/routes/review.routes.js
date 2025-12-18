@@ -9,7 +9,7 @@ const router = express.Router();
 
 const reviewController = require('../controllers/review.controller');
 const { authenticate, optionalAuth } = require('../middleware/auth');
-const { requireAdmin } = require('../middleware/roleGuard');
+const { requireAdmin, attachStaffInfo } = require('../middleware/roleGuard');
 const { validate, paramSchemas, Joi } = require('../middleware/validator');
 
 /**
@@ -120,6 +120,33 @@ router.get(
   optionalAuth,
   validate(paramSchemas.idParam, 'params'),
   reviewController.getReviewById
+);
+
+/**
+ * @route   PUT /api/reviews/:id
+ * @desc    Update a review
+ * @access  Private (owner or admin)
+ */
+router.put(
+  '/:id',
+  authenticate,
+  attachStaffInfo,
+  validate(paramSchemas.idParam, 'params'),
+  validate(Joi.object({
+    foodRating: Joi.number().integer().min(1).max(5),
+    serviceRating: Joi.number().integer().min(1).max(5),
+    ambianceRating: Joi.number().integer().min(1).max(5),
+    comment: Joi.string().trim().max(2000).allow(''),
+    isAnonymous: Joi.boolean(),
+    itemReviews: Joi.array().items(
+      Joi.object({
+        menuItem: Joi.string().required(),
+        rating: Joi.number().integer().min(1).max(5).required(),
+        comment: Joi.string().trim().max(500)
+      })
+    )
+  })),
+  reviewController.updateReview
 );
 
 /**

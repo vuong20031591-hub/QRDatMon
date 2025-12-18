@@ -5,6 +5,7 @@
 'use client';
 
 import { ThemeProvider } from 'next-themes';
+import { Toaster } from 'sonner';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
 import { useSidebarStore } from '@/stores/sidebar-store';
@@ -31,6 +32,7 @@ export default function DashboardLayout({
           <div className="container mx-auto p-6">{children}</div>
         </main>
       </div>
+      <Toaster richColors position="top-right" />
     </ThemeProvider>
   );
 }

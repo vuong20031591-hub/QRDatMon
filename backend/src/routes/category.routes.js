@@ -17,14 +17,14 @@ const categorySchemas = {
   createCategory: Joi.object({
     name: Joi.string().trim().min(1).max(100).required(),
     description: Joi.string().trim().max(500),
-    imageUrl: Joi.string().uri(),
+    imageUrl: Joi.string().trim().max(500).allow(''),
     sortOrder: Joi.number().integer().min(0)
   }),
 
   updateCategory: Joi.object({
     name: Joi.string().trim().min(1).max(100),
     description: Joi.string().trim().max(500).allow(''),
-    imageUrl: Joi.string().uri().allow('', null),
+    imageUrl: Joi.string().trim().max(500).allow('', null),
     sortOrder: Joi.number().integer().min(0),
     isActive: Joi.boolean()
   }),

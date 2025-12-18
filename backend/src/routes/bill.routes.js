@@ -16,6 +16,28 @@ const { validate, billSchemas, paramSchemas, Joi } = require('../middleware/vali
 router.use(authenticate);
 
 /**
+ * @route   GET /api/bills
+ * @desc    Get all bills with filters (Admin/Staff)
+ * @access  Staff
+ */
+router.get(
+  '/',
+  requireStaff,
+  validate(Joi.object({
+    status: Joi.string().valid('open', 'requesting_payment', 'paid', 'cancelled'),
+    tableId: Joi.string(),
+    startDate: Joi.date().iso(),
+    endDate: Joi.date().iso(),
+    search: Joi.string().trim(),
+    page: Joi.number().integer().min(1).default(1),
+    limit: Joi.number().integer().min(1).max(100).default(20),
+    sortBy: Joi.string().valid('createdAt', 'totalAmount', 'billNumber'),
+    sortOrder: Joi.string().valid('asc', 'desc').default('desc')
+  }), 'query'),
+  billController.getBills
+);
+
+/**
  * @route   GET /api/bills/my-session
  * @desc    Get bill for user's active session
  * @access  Private

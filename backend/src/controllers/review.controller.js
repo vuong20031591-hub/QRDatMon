@@ -144,6 +144,22 @@ const getMyReviews = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Update a review
+ * PUT /api/reviews/:id
+ * Private (owner or admin)
+ */
+const updateReview = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user._id;
+  // Check admin from staffRole (set by roleGuard middleware) or token
+  const isAdmin = req.staffRole === 'admin' || req.token?.staffRole === 'admin';
+
+  const review = await reviewService.updateReview(id, req.body, userId, isAdmin);
+
+  return ok(res, { review }, 'Review updated successfully');
+});
+
+/**
  * Delete a review (admin only)
  * DELETE /api/reviews/:id
  * Admin only
@@ -163,5 +179,6 @@ module.exports = {
   getItemReviews,
   getReviewStats,
   getMyReviews,
+  updateReview,
   deleteReview
 };

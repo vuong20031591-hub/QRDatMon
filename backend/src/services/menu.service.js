@@ -7,6 +7,7 @@
 const { MenuItem, Category } = require('../models');
 const { NotFoundError, ValidationError, ConflictError } = require('../utils/errors');
 const { MENU_ITEM_STATUS, PAGINATION } = require('../utils/constants');
+const { deleteImageByUrl } = require('../utils/image-utils');
 
 /**
  * Escape special regex characters to prevent regex injection attacks
@@ -349,6 +350,34 @@ const softDeleteMenuItem = async (itemId) => {
 };
 
 /**
+ * Permanently delete a menu item (hard delete)
+ * Also deletes associated image directory
+ * @param {string} itemId - Menu item ID
+ * @returns {Promise<Object>} Deleted menu item info
+ */
+const permanentDeleteMenuItem = async (itemId) => {
+  const item = await MenuItem.findById(itemId);
+
+  if (!item) {
+    throw new NotFoundError('Menu item not found', 'MenuItem');
+  }
+
+  // Delete image directory if exists
+  if (item.imageUrl) {
+    await deleteImageByUrl(item.imageUrl);
+  }
+
+  await MenuItem.findByIdAndDelete(itemId);
+
+  return {
+    id: itemId,
+    name: item.name,
+    permanentlyDeleted: true,
+    deletedAt: new Date()
+  };
+};
+
+/**
  * Update menu item status
  * @param {string} itemId - Menu item ID
  * @param {string} status - New status
@@ -469,6 +498,7 @@ module.exports = {
   createMenuItem,
   updateMenuItem,
   softDeleteMenuItem,
+  permanentDeleteMenuItem,
   updateMenuItemStatus,
   getPopularItems,
   getNewItems,

@@ -9,6 +9,27 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const { ok, created, paginated } = require('../utils/response');
 
 /**
+ * Get all bills with filters
+ * GET /api/bills
+ * Staff/Admin only
+ */
+const getBills = asyncHandler(async (req, res) => {
+  const { status, tableId, startDate, endDate, search, page, limit, sortBy, sortOrder } = req.query;
+
+  const filters = { status, tableId, startDate, endDate, search };
+  const pagination = {
+    page: parseInt(page, 10) || 1,
+    limit: parseInt(limit, 10) || 20,
+    sortBy,
+    sortOrder
+  };
+
+  const result = await billService.getBills(filters, pagination);
+
+  return paginated(res, result.bills, result.pagination, 'Bills retrieved successfully');
+});
+
+/**
  * Get bill by ID
  * GET /api/bills/:id
  */
@@ -193,6 +214,7 @@ const recalculateBill = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  getBills,
   getBillById,
   getBillByTable,
   getBillBySession,

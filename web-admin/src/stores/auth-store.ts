@@ -12,11 +12,13 @@ interface AuthState {
   accessToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  _hasHydrated: boolean;
   
   // Actions
   setAuth: (user: User, staff: Staff | null, token: string) => void;
   logout: () => void;
   setLoading: (loading: boolean) => void;
+  setHasHydrated: (state: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -27,6 +29,7 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       isAuthenticated: false,
       isLoading: true,
+      _hasHydrated: false,
       
       setAuth: (user, staff, token) => {
         if (typeof window !== 'undefined') {
@@ -45,6 +48,8 @@ export const useAuthStore = create<AuthState>()(
         if (typeof window !== 'undefined') {
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
+          // Xóa cookie accessToken
+          document.cookie = 'accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
         }
         set({
           user: null,
@@ -56,6 +61,7 @@ export const useAuthStore = create<AuthState>()(
       },
       
       setLoading: (loading) => set({ isLoading: loading }),
+      setHasHydrated: (state) => set({ _hasHydrated: state }),
     }),
     {
       name: 'auth-storage',
@@ -65,6 +71,13 @@ export const useAuthStore = create<AuthState>()(
         accessToken: state.accessToken,
         isAuthenticated: state.isAuthenticated,
       }),
+      onRehydrateStorage: () => (state) => {
+        // Khi hydrate xong, set isLoading = false
+        if (state) {
+          state.setLoading(false);
+          state.setHasHydrated(true);
+        }
+      },
     }
   )
 );

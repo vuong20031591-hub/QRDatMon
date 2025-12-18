@@ -11,7 +11,8 @@ const { authenticate } = require('../middleware/auth');
 const { requireRole } = require('../middleware/roleGuard');
 const { uploadSingle, uploadMultiple, UPLOAD_DIR, THUMBNAILS_DIR } = require('../middleware/upload');
 const imageService = require('../services/image.service');
-const { successResponse, errorResponse } = require('../utils/response');
+const { imageOptimizer } = require('../services/image-optimizer.service');
+const { ok, created, badRequest, notFound } = require('../utils/response');
 
 /**
  * @swagger
@@ -40,19 +41,28 @@ const { successResponse, errorResponse } = require('../utils/response');
  */
 router.post('/image',
   authenticate,
-  requireRole(['admin', 'manager']),
+  requireRole('admin', 'manager'),
   uploadSingle('image'),
   async (req, res, next) => {
     try {
       if (!req.file) {
-        return errorResponse(res, 'No file uploaded', 400);
+        return badRequest(res, 'No file uploaded');
       }
 
-      const imageInfo = await imageService.processImage(req.file);
+      // Use new optimizer if optimize query param is set
+      const useOptimizer = req.query.optimize === 'true';
+      const category = req.body.category || 'menu-items';
+      
+      let imageInfo;
+      if (useOptimizer) {
+        imageInfo = await imageOptimizer.processImage(req.file, category);
+      } else {
+        imageInfo = await imageService.processImage(req.file);
+      }
 
-      return successResponse(res, {
+      return created(res, {
         message: 'Image uploaded successfully',
-        data: imageInfo
+        ...imageInfo
       });
     } catch (error) {
       next(error);
@@ -85,21 +95,28 @@ router.post('/image',
  */
 router.post('/images',
   authenticate,
-  requireRole(['admin', 'manager']),
+  requireRole('admin', 'manager'),
   uploadMultiple('images', 5),
   async (req, res, next) => {
     try {
       if (!req.files || req.files.length === 0) {
-        return errorResponse(res, 'No files uploaded', 400);
+        return badRequest(res, 'No files uploaded');
       }
 
+      const useOptimizer = req.query.optimize === 'true';
+      const category = req.body.category || 'menu-items';
+
       const results = await Promise.all(
-        req.files.map(file => imageService.processImage(file))
+        req.files.map(file => 
+          useOptimizer 
+            ? imageOptimizer.processImage(file, category)
+            : imageService.processImage(file)
+        )
       );
 
-      return successResponse(res, {
+      return created(res, {
         message: `${results.length} images uploaded successfully`,
-        data: results
+        images: results
       });
     } catch (error) {
       next(error);
@@ -127,13 +144,13 @@ router.post('/images',
  */
 router.delete('/:filename',
   authenticate,
-  requireRole(['admin', 'manager']),
+  requireRole('admin', 'manager'),
   async (req, res, next) => {
     try {
       const { filename } = req.params;
       await imageService.deleteImage(`/uploads/${filename}`);
 
-      return successResponse(res, {
+      return ok(res, {
         message: 'Image deleted successfully'
       });
     } catch (error) {

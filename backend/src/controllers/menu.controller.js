@@ -190,14 +190,14 @@ const updateMenuItemStatus = asyncHandler(async (req, res) => {
 });
 
 /**
- * Soft delete menu item
+ * Delete menu item (permanent delete with image cleanup)
  * DELETE /api/menu/:id
  * Admin only
  */
 const deleteMenuItem = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const result = await menuService.softDeleteMenuItem(id);
+  const result = await menuService.permanentDeleteMenuItem(id);
 
   return ok(res, result, 'Menu item deleted successfully');
 });

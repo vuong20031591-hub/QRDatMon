@@ -6,6 +6,7 @@
 
 const { Category, MenuItem } = require('../models');
 const { NotFoundError, ValidationError, ConflictError } = require('../utils/errors');
+const { deleteImageByUrl } = require('../utils/image-utils');
 
 /**
  * Get all categories
@@ -223,6 +224,11 @@ const permanentDeleteCategory = async (categoryId) => {
       `Cannot permanently delete category with ${itemCount} menu items.`,
       [{ field: 'category', message: `Category has ${itemCount} items` }]
     );
+  }
+
+  // Delete image directory if exists
+  if (category.imageUrl) {
+    await deleteImageByUrl(category.imageUrl);
   }
 
   await Category.findByIdAndDelete(categoryId);

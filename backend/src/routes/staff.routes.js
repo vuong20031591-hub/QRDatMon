@@ -145,11 +145,14 @@ router.post(
   authenticate,
   requireAdmin,
   validate(Joi.object({
-    userId: Joi.string().required(),
+    userId: Joi.string(),
+    email: Joi.string().email().lowercase(),
+    name: Joi.string().trim().min(1).max(100),
+    phone: Joi.string().trim(),
     employeeCode: Joi.string().trim().uppercase().min(2).max(20).required(),
     role: Joi.string().valid('waiter', 'cashier', 'kitchen', 'manager', 'admin').required(),
     hireDate: Joi.date().iso()
-  })),
+  }).or('userId', 'email')),
   staffController.createStaff
 );
 

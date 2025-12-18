@@ -33,7 +33,8 @@ const tableValidation = {
       x: Joi.number(),
       y: Joi.number()
     }),
-    isActive: Joi.boolean()
+    isActive: Joi.boolean(),
+    status: Joi.string().valid('available', 'occupied', 'reserved', 'cleaning')
   }),
 
   updateStatus: Joi.object({
@@ -70,15 +71,13 @@ const tableValidation = {
 /**
  * @route   GET /api/tables
  * @desc    Get all tables with optional filtering
- * @access  Staff only
+ * @access  Public (for development) - TODO: Add auth back for production
  * @query   area - Filter by area ID
  * @query   status - Filter by status
  * @query   active - Filter by active status
  */
 router.get(
   '/',
-  authenticate,
-  requireStaff,
   tableController.getTables
 );
 

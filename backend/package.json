@@ -6,7 +6,11 @@
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
-    "db:init": "node src/database/init.js"
+    "db:init": "node src/database/init.js",
+    "seed": "node src/database/seed.js",
+    "seed:orders": "node scripts/seed-orders.js",
+    "seed:reviews": "node scripts/seed-reviews.js",
+    "seed:inventory": "node scripts/seed-inventory.js"
   },
   "keywords": [
     "restaurant",
