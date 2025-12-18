@@ -3,6 +3,7 @@ package com.qrdatmon.core.network.api
 import com.qrdatmon.core.network.dto.ApiResponse
 import com.qrdatmon.core.network.dto.order.CreateOrderRequest
 import com.qrdatmon.core.network.dto.order.OrderListResponse
+import com.qrdatmon.core.network.dto.order.OrderListWrapper
 import com.qrdatmon.core.network.dto.order.OrderResponse
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -31,5 +32,5 @@ interface OrderApi {
     @GET("orders/bill/{billId}")
     suspend fun getOrdersByBill(
         @Path("billId") billId: String
-    ): ApiResponse<OrderListResponse>
+    ): ApiResponse<OrderListWrapper>
 }

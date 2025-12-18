@@ -10,8 +10,8 @@ import com.qrdatmon.core.network.dto.order.OrderToppingResponse
 fun OrderResponse.toOrder(): Order {
     return Order(
         id = id,
-        billId = billId,
-        userId = userId,
+        billId = bill?.id ?: "",
+        userId = user?.id ?: "",
         orderNumber = orderNumber,
         status = status,
         totalAmount = totalAmount,
@@ -27,9 +27,9 @@ fun OrderResponse.toOrder(): Order {
 fun OrderItemResponse.toOrderItem(): OrderItem {
     return OrderItem(
         id = id,
-        menuItemId = menuItemId,
-        menuItemName = menuItemName,
-        menuItemImage = menuItemImage,
+        menuItemId = menuItem?.id ?: combo?.id ?: "",
+        menuItemName = itemName,
+        menuItemImage = menuItem?.imageUrl ?: combo?.imageUrl,
         quantity = quantity,
         unitPrice = unitPrice,
         subtotal = subtotal,
