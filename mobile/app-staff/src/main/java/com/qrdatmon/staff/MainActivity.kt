@@ -7,33 +7,38 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import com.qrdatmon.staff.util.AuthManager
+import com.qrdatmon.core.common.auth.AuthManager
 import com.qrdatmon.staff.ui.auth.LoginScreen
 import com.qrdatmon.staff.ui.main.MainScreen
 import com.qrdatmon.staff.ui.onboarding.OnboardingScreen
 import com.qrdatmon.staff.ui.splash.SimpleSplashScreen
 import com.qrdatmon.staff.ui.theme.QRDatMonTheme
+import com.qrdatmon.staff.ui.profile.AttendanceViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     
-    private val authManager by lazy { AuthManager(this) }
+    private val authManager by lazy { AuthManager(this, "staff_auth_prefs") }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             QRDatMonTheme {
-                StaffAppNavigation(authManager)
+                val attendanceViewModel: AttendanceViewModel = hiltViewModel()
+                StaffAppNavigation(authManager, attendanceViewModel)
             }
         }
     }
 }
 
 @Composable
-fun StaffAppNavigation(authManager: com.qrdatmon.staff.util.AuthManager) {
+fun StaffAppNavigation(
+    authManager: com.qrdatmon.core.common.auth.AuthManager,
+    attendanceViewModel: com.qrdatmon.staff.ui.profile.AttendanceViewModel
+) {
     // Check if user is already logged in
     val initialScreen = if (authManager.isLoggedIn()) "main" else "splash"
     var currentScreen by remember { mutableStateOf(initialScreen) }
@@ -71,7 +76,8 @@ fun StaffAppNavigation(authManager: com.qrdatmon.staff.util.AuthManager) {
                 onNavigateToPersonalInfo = { currentScreen = "personalInfo" },
                 onNavigateToAttendanceHistory = { currentScreen = "attendanceHistory" },
                 onNavigateToSettings = { currentScreen = "settings" },
-                authManager = authManager
+                authManager = authManager,
+                attendanceViewModel = attendanceViewModel
             )
         }
         "tableDetail" -> {
@@ -97,7 +103,8 @@ fun StaffAppNavigation(authManager: com.qrdatmon.staff.util.AuthManager) {
         }
         "attendanceHistory" -> {
             com.qrdatmon.staff.ui.profile.AttendanceHistoryScreen(
-                onBackClick = { currentScreen = "profile" }
+                onBackClick = { currentScreen = "profile" },
+                viewModel = attendanceViewModel
             )
         }
         "settings" -> {
@@ -119,7 +126,8 @@ fun StaffAppNavigation(authManager: com.qrdatmon.staff.util.AuthManager) {
                 onNavigateToAttendanceHistory = { currentScreen = "attendanceHistory" },
                 onNavigateToSettings = { currentScreen = "settings" },
                 initialTab = 2, // Start at Profile tab
-                authManager = authManager
+                authManager = authManager,
+                attendanceViewModel = attendanceViewModel
             )
         }
     }

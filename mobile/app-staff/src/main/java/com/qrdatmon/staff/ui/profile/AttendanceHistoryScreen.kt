@@ -37,35 +37,35 @@ enum class AttendanceStatus {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AttendanceHistoryScreen(
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    viewModel: AttendanceViewModel
 ) {
     var selectedMonth by remember { mutableStateOf(Calendar.getInstance().get(Calendar.MONTH)) }
     var selectedYear by remember { mutableStateOf(Calendar.getInstance().get(Calendar.YEAR)) }
 
-    // Mock data
-    val attendanceRecords = remember {
-        listOf(
-            AttendanceRecord(
-                "1", "17/12/2024", "08:00", "16:30", 8.5, AttendanceStatus.COMPLETED
-            ),
-            AttendanceRecord(
-                "2", "16/12/2024", "08:15", "16:00", 7.75, AttendanceStatus.LATE
-            ),
-            AttendanceRecord(
-                "3", "15/12/2024", "08:00", "15:30", 7.5, AttendanceStatus.EARLY_LEAVE
-            ),
-            AttendanceRecord(
-                "4", "14/12/2024", "08:00", null, 0.0, AttendanceStatus.IN_PROGRESS
-            ),
-            AttendanceRecord(
-                "5", "13/12/2024", "08:00", "16:00", 8.0, AttendanceStatus.COMPLETED
-            ),
-            AttendanceRecord(
-                "6", "12/12/2024", "08:00", "16:00", 8.0, AttendanceStatus.COMPLETED
-            ),
-            AttendanceRecord(
-                "7", "11/12/2024", "08:30", "16:00", 7.5, AttendanceStatus.LATE
-            )
+    val shifts by viewModel.shifts.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
+    
+    // Load shifts when screen opens
+    LaunchedEffect(selectedMonth, selectedYear) {
+        val calendar = Calendar.getInstance()
+        calendar.set(selectedYear, selectedMonth, 1)
+        val startDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(calendar.time)
+        
+        calendar.set(Calendar.DAY_OF_MONTH, calendar.getActualMaximum(Calendar.DAY_OF_MONTH))
+        val endDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(calendar.time)
+        
+        viewModel.loadShiftHistory(startDate, endDate)
+    }
+    
+    val attendanceRecords = shifts.map { shift ->
+        AttendanceRecord(
+            id = shift.id,
+            date = formatDate(shift.workDate),
+            checkInTime = formatTime(shift.checkInAt ?: ""),
+            checkOutTime = shift.checkOutAt?.let { formatTime(it) },
+            workHours = calculateWorkHours(shift.checkInAt, shift.checkOutAt),
+            status = determineStatus(shift)
         )
     }
 
@@ -205,6 +205,71 @@ fun AttendanceHistoryScreen(
 
             item { Spacer(modifier = Modifier.height(16.dp)) }
         }
+    }
+}
+
+// Helper functions
+private fun formatDate(isoString: String): String {
+    return try {
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+        inputFormat.timeZone = java.util.TimeZone.getTimeZone("UTC")
+        val date = inputFormat.parse(isoString)
+        val outputFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        outputFormat.format(date ?: java.util.Date())
+    } catch (e: Exception) {
+        isoString.substring(0, 10)
+    }
+}
+
+private fun formatTime(isoString: String): String {
+    if (isoString.isEmpty()) return "--:--"
+    return try {
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+        inputFormat.timeZone = java.util.TimeZone.getTimeZone("UTC")
+        val date = inputFormat.parse(isoString)
+        val outputFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+        outputFormat.format(date ?: java.util.Date())
+    } catch (e: Exception) {
+        "--:--"
+    }
+}
+
+private fun calculateWorkHours(checkInAt: String?, checkOutAt: String?): Double {
+    if (checkInAt == null || checkOutAt == null) return 0.0
+    
+    return try {
+        val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+        format.timeZone = java.util.TimeZone.getTimeZone("UTC")
+        
+        val checkIn = format.parse(checkInAt)
+        val checkOut = format.parse(checkOutAt)
+        
+        if (checkIn != null && checkOut != null) {
+            val diffInMillis = checkOut.time - checkIn.time
+            val hours = diffInMillis / (1000.0 * 60 * 60)
+            (hours * 10).toInt() / 10.0 // Round to 1 decimal
+        } else {
+            0.0
+        }
+    } catch (e: Exception) {
+        0.0
+    }
+}
+
+private fun determineStatus(shift: com.qrdatmon.staff.data.model.Shift): AttendanceStatus {
+    return when {
+        shift.checkOutAt == null -> AttendanceStatus.IN_PROGRESS
+        shift.checkInAt != null && shift.checkOutAt != null -> {
+            val checkInTime = formatTime(shift.checkInAt)
+            val checkOutTime = formatTime(shift.checkOutAt)
+            
+            when {
+                checkInTime > "08:15" -> AttendanceStatus.LATE
+                checkOutTime < "16:00" -> AttendanceStatus.EARLY_LEAVE
+                else -> AttendanceStatus.COMPLETED
+            }
+        }
+        else -> AttendanceStatus.COMPLETED
     }
 }
 

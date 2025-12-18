@@ -146,12 +146,13 @@ fun MenuScreen(
                 }
 
                 // Promotions Section
-                item {
-                    PromotionsSection(
-                        promotions = uiState.promotions,
-                        onViewAllClick = onViewAllPromos
-                    )
-                }
+                // TODO: Add promotions back when API is ready
+                // item {
+                //     PromotionsSection(
+                //         promotions = uiState.promotions,
+                //         onViewAllClick = onViewAllPromos
+                //     )
+                // }
 
                 // Category Filter
                 item {

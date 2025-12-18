@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.runtime.collectAsState
 
 @Composable
 fun ProfileScreen(
@@ -27,12 +28,16 @@ fun ProfileScreen(
     onNavigateToPersonalInfo: () -> Unit = {},
     onNavigateToAttendanceHistory: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
-    authManager: com.qrdatmon.staff.util.AuthManager
+    authManager: com.qrdatmon.core.common.auth.AuthManager,
+    viewModel: AttendanceViewModel
 ) {
     var showCheckInDialog by remember { mutableStateOf(false) }
     var showCheckOutDialog by remember { mutableStateOf(false) }
-    var isCheckedIn by remember { mutableStateOf(false) }
-    var checkInTime by remember { mutableStateOf<String?>(null) }
+    var selectedShiftType by remember { mutableStateOf("morning") }
+    var showShiftTypeDialog by remember { mutableStateOf(false) }
+    
+    val attendanceState by viewModel.attendanceState.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
     
     // Get user info from AuthManager
     val userName = authManager.getUserName() ?: "Nhân viên"
@@ -46,6 +51,21 @@ fun ProfileScreen(
         else -> "Nhân viên"
     }
     val initials = userName.split(" ").takeLast(2).joinToString("") { it.first().toString() }.uppercase()
+    
+    // Handle UI state
+    LaunchedEffect(uiState) {
+        when (uiState) {
+            is AttendanceUiState.Success -> {
+                // Show success message if needed
+                viewModel.resetUiState()
+            }
+            is AttendanceUiState.Error -> {
+                // Show error message if needed
+                viewModel.resetUiState()
+            }
+            else -> {}
+        }
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -145,7 +165,7 @@ fun ProfileScreen(
                             color = Color(0xFF222222)
                         )
 
-                        if (isCheckedIn) {
+                        if (attendanceState.isCheckedIn) {
                             Box(
                                 modifier = Modifier
                                     .background(
@@ -164,9 +184,9 @@ fun ProfileScreen(
                         }
                     }
 
-                    if (checkInTime != null) {
+                    if (attendanceState.checkInTime != null) {
                         Text(
-                            text = "Giờ vào: $checkInTime",
+                            text = "Giờ vào: ${attendanceState.checkInTime}",
                             fontSize = 14.sp,
                             color = Color(0xFF666666),
                             modifier = Modifier.padding(top = 8.dp)
@@ -179,22 +199,31 @@ fun ProfileScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        if (!isCheckedIn) {
+                        if (!attendanceState.isCheckedIn) {
                             Button(
-                                onClick = { showCheckInDialog = true },
+                                onClick = { showShiftTypeDialog = true },
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(8.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = Color(0xFF4CAF50)
-                                )
+                                ),
+                                enabled = !attendanceState.isLoading
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Login,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Chấm công vào")
+                                if (attendanceState.isLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        color = Color.White,
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Login,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Chấm công vào")
+                                }
                             }
                         } else {
                             Button(
@@ -203,15 +232,24 @@ fun ProfileScreen(
                                 shape = RoundedCornerShape(8.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = Color(0xFFFF9800)
-                                )
+                                ),
+                                enabled = !attendanceState.isLoading
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Logout,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Chấm công ra")
+                                if (attendanceState.isLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        color = Color.White,
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Logout,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Chấm công ra")
+                                }
                             }
                         }
                     }
@@ -300,20 +338,64 @@ fun ProfileScreen(
         item { Spacer(modifier = Modifier.height(32.dp)) }
     }
 
-    // Check In Dialog
-    if (showCheckInDialog) {
+    // Shift Type Selection Dialog
+    if (showShiftTypeDialog) {
         AlertDialog(
-            onDismissRequest = { showCheckInDialog = false },
-            title = { Text("Xác nhận chấm công vào") },
-            text = { 
-                Text("Bạn có chắc chắn muốn chấm công vào ca làm việc?")
+            onDismissRequest = { showShiftTypeDialog = false },
+            title = { Text("Chọn ca làm việc") },
+            text = {
+                Column {
+                    ShiftTypeOption("Ca sáng", "morning", selectedShiftType) {
+                        selectedShiftType = it
+                    }
+                    ShiftTypeOption("Ca chiều", "afternoon", selectedShiftType) {
+                        selectedShiftType = it
+                    }
+                    ShiftTypeOption("Ca tối", "evening", selectedShiftType) {
+                        selectedShiftType = it
+                    }
+                }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        isCheckedIn = true
-                        checkInTime = SimpleDateFormat("HH:mm", Locale.getDefault())
-                            .format(Date())
+                        showShiftTypeDialog = false
+                        showCheckInDialog = true
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF4CAF50)
+                    )
+                ) {
+                    Text("Tiếp tục")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showShiftTypeDialog = false }) {
+                    Text("Hủy")
+                }
+            }
+        )
+    }
+
+    // Check In Dialog
+    if (showCheckInDialog) {
+        val shiftTypeName = when(selectedShiftType) {
+            "morning" -> "ca sáng"
+            "afternoon" -> "ca chiều"
+            "evening" -> "ca tối"
+            else -> "ca làm việc"
+        }
+        
+        AlertDialog(
+            onDismissRequest = { showCheckInDialog = false },
+            title = { Text("Xác nhận chấm công vào") },
+            text = { 
+                Text("Bạn có chắc chắn muốn chấm công vào $shiftTypeName?")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.clockIn(selectedShiftType)
                         showCheckInDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(
@@ -342,8 +424,7 @@ fun ProfileScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        isCheckedIn = false
-                        checkInTime = null
+                        viewModel.clockOut()
                         showCheckOutDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(
@@ -359,6 +440,32 @@ fun ProfileScreen(
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun ShiftTypeOption(
+    label: String,
+    value: String,
+    selectedValue: String,
+    onSelect: (String) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onSelect(value) }
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(
+            selected = selectedValue == value,
+            onClick = { onSelect(value) },
+            colors = RadioButtonDefaults.colors(
+                selectedColor = Color(0xFF4CAF50)
+            )
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(text = label, fontSize = 16.sp)
     }
 }
 

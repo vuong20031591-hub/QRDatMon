@@ -53,7 +53,8 @@ fun MainScreen(
     onNavigateToAttendanceHistory: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     initialTab: Int = 0,
-    authManager: com.qrdatmon.staff.util.AuthManager
+    authManager: com.qrdatmon.core.common.auth.AuthManager,
+    attendanceViewModel: com.qrdatmon.staff.ui.profile.AttendanceViewModel
 ) {
     var selectedItem by remember { mutableStateOf(initialTab) }
     val items = listOf(
@@ -102,7 +103,8 @@ fun MainScreen(
                 onNavigateToPersonalInfo = onNavigateToPersonalInfo,
                 onNavigateToAttendanceHistory = onNavigateToAttendanceHistory,
                 onNavigateToSettings = onNavigateToSettings,
-                authManager = authManager
+                authManager = authManager,
+                viewModel = attendanceViewModel
             )
         }
     }

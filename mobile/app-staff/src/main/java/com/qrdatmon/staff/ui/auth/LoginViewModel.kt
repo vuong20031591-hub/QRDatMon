@@ -22,10 +22,8 @@ data class LoginUiState(
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val authApi: AuthApi,
-    @ApplicationContext private val context: Context
+    private val authManager: com.qrdatmon.core.common.auth.AuthManager
 ) : ViewModel() {
-    
-    private val authManager by lazy { com.qrdatmon.staff.util.AuthManager(context) }
 
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
@@ -48,7 +46,7 @@ class LoginViewModel @Inject constructor(
                 val data = response.data
                 if (response.success && data != null) {
                     // Save auth data using AuthManager
-                    authManager.saveAuthData(
+                    authManager.saveStaffAuthData(
                         accessToken = data.accessToken,
                         refreshToken = data.refreshToken,
                         userId = data.user.id,
