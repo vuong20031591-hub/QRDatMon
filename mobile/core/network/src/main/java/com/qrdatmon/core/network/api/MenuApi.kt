@@ -12,7 +12,7 @@ interface MenuApi {
     @GET("categories")
     suspend fun getCategories(): ApiResponse<List<CategoryResponse>>
 
-    @GET("menu")
+    @GET("menu/items")
     suspend fun getMenuItems(
         @Query("category") categoryId: String? = null,
         @Query("search") search: String? = null,

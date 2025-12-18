@@ -52,79 +52,50 @@ fun MenuScreen(
     onOrderClick: () -> Unit,
     onNavigateToOrderStatus: () -> Unit = {},
     onViewAllPromos: () -> Unit = {},
-    onMenuItemClick: (String) -> Unit = {}
+    onMenuItemClick: (String) -> Unit = {},
+    viewModel: MenuViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
-    var selectedCategory by remember { mutableStateOf("Tất cả") }
     var cartItemCount by remember { mutableStateOf(3) }
     var totalAmount by remember { mutableStateOf(188000) }
     var selectedTab by remember { mutableStateOf("menu") }
 
-    val categories = listOf("Tất cả", "Món chính", "Khai vị", "Lẩu & Báp xào")
+    val uiState by viewModel.uiState.collectAsState()
     
-    val menuItems = remember {
-        listOf(
+    // Build categories list with "Tất cả" option
+    val categories = remember(uiState.categories) {
+        listOf("Tất cả") + uiState.categories.map { it.name }
+    }
+    
+    val selectedCategory = remember(uiState.selectedCategoryId, uiState.categories) {
+        if (uiState.selectedCategoryId == null) {
+            "Tất cả"
+        } else {
+            uiState.categories.find { it.id == uiState.selectedCategoryId }?.name ?: "Tất cả"
+        }
+    }
+    
+    // Convert backend MenuItemResponse to UI MenuItem
+    val menuItems = remember(uiState.menuItems) {
+        uiState.menuItems.map { item ->
             MenuItem(
-                id = "1",
-                name = "Cơm tấm sườn bì chả đặc biệt",
-                description = "Sườn nướng mềm, bì giòn, chả thơm, mỡ hành",
-                price = 55000,
-                imageUrl = "",
-                category = "Món chính",
-                isPopular = true,
-                discount = "Giảm 10%",
-                status = "Còn món"
-            ),
-            MenuItem(
-                id = "2",
-                name = "Phở bò tái nạm",
-                description = "Nước dùng ngọt thanh, thịt bò tươi mềm",
-                price = 45000,
-                imageUrl = "",
-                category = "Món chính",
-                status = "Còn món"
-            ),
-            MenuItem(
-                id = "3",
-                name = "Chả giò hải sản chiên giòn",
-                description = "Tôm, mực, cua tươi ngon, vỏ giòn rụm",
-                price = 39000,
-                imageUrl = "",
-                category = "Khai vị",
-                isNew = true,
-                status = "Sắp hết"
-            ),
-            MenuItem(
-                id = "4",
-                name = "Gà nướng mật ong cơm nóng",
-                description = "Gà tươi ướp mật ong, nướng vàng ươm",
-                price = 72000,
-                originalPrice = 85000,
-                imageUrl = "",
-                category = "Món chính",
-                discount = "Giảm 15%",
-                status = "Còn món"
-            ),
-            MenuItem(
-                id = "5",
-                name = "Trà đào cam sả",
-                description = "Trà đào ngọt thanh, thơm cay vị sả, giải khát",
-                price = 39000,
-                originalPrice = 45000,
-                imageUrl = "",
-                category = "Đồ uống",
-                discount = "Giảm 13%",
-                status = "Còn món"
-            ),
-            MenuItem(
-                id = "6",
-                name = "Cà phê sữa đá",
-                description = "Cà phê phin đậm đà, sữa béo ngọt, đá mát lạnh",
-                price = 29000,
-                imageUrl = "",
-                category = "Đồ uống",
-                status = "Còn món"
+                id = item.id,
+                name = item.name,
+                description = item.description ?: "",
+                price = item.price.toInt(),
+                originalPrice = null,
+                imageUrl = item.imageUrl ?: "",
+                category = "", // Category name not in response
+                isPopular = item.isPopular,
+                isNew = item.isNew,
+                discount = null,
+                status = when (item.status) {
+                    "available" -> "Còn món"
+                    "low_stock" -> "Sắp hết"
+                    "out_of_stock" -> "Hết món"
+                    else -> "Còn món"
+                }
             )
-        )
+        }
     }
 
     Box(
@@ -166,6 +137,7 @@ fun MenuScreen(
             // Content
             LazyColumn(
                 modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(bottom = 140.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 // Restaurant Banner
@@ -183,16 +155,71 @@ fun MenuScreen(
                     CategoryFilter(
                         categories = categories,
                         selectedCategory = selectedCategory,
-                        onCategorySelected = { selectedCategory = it }
+                        onCategorySelected = { category ->
+                            if (category == "Tất cả") {
+                                viewModel.selectCategory(null)
+                            } else {
+                                val categoryId = uiState.categories.find { it.name == category }?.id
+                                viewModel.selectCategory(categoryId)
+                            }
+                        }
                     )
                 }
 
-                // Menu Items Grid
-                item {
-                    MenuItemsSection(
-                        menuItems = menuItems,
-                        onItemClick = { item -> onMenuItemClick(item.name) }
-                    )
+                // Loading or Error State
+                if (uiState.isLoading) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = Color(0xFFFF6F3C))
+                        }
+                    }
+                } else if (uiState.errorMessage.isNotEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = "Lỗi tải dữ liệu",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFFEF4444)
+                                )
+                                Text(
+                                    text = uiState.errorMessage,
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF666666)
+                                )
+                                Button(
+                                    onClick = { viewModel.retry() },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFFFF6F3C)
+                                    )
+                                ) {
+                                    Text("Thử lại")
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Menu Items Grid
+                    item {
+                        MenuItemsSection(
+                            menuItems = menuItems,
+                            onItemClick = { item -> onMenuItemClick(item.id) }
+                        )
+                    }
                 }
             }
 
