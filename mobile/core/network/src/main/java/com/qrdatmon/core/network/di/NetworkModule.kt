@@ -6,6 +6,7 @@ import com.qrdatmon.core.network.api.AuthApi
 import com.qrdatmon.core.network.api.CartApi
 import com.qrdatmon.core.network.api.MenuApi
 import com.qrdatmon.core.network.api.OrderApi
+import com.qrdatmon.core.network.api.PromotionApi
 import com.qrdatmon.core.network.api.TableApi
 import com.qrdatmon.core.network.interceptor.AuthInterceptor
 import com.qrdatmon.core.network.interceptor.LoggingInterceptor
@@ -90,5 +91,11 @@ object NetworkModule {
     @Singleton
     fun provideOrderApi(retrofit: Retrofit): OrderApi {
         return retrofit.create(OrderApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun providePromotionApi(retrofit: Retrofit): PromotionApi {
+        return retrofit.create(PromotionApi::class.java)
     }
 }

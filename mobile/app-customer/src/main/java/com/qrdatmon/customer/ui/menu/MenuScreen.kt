@@ -147,7 +147,10 @@ fun MenuScreen(
 
                 // Promotions Section
                 item {
-                    PromotionsSection(onViewAllClick = onViewAllPromos)
+                    PromotionsSection(
+                        promotions = uiState.promotions,
+                        onViewAllClick = onViewAllPromos
+                    )
                 }
 
                 // Category Filter
@@ -416,7 +419,11 @@ private fun RestaurantBanner() {
 }
 
 @Composable
-private fun PromotionsSection(onViewAllClick: () -> Unit = {}) {
+private fun PromotionsSection(
+    promotions: List<com.qrdatmon.core.network.dto.promotion.PromotionResponse>,
+    onViewAllClick: () -> Unit = {}
+) {
+    if (promotions.isEmpty()) return
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -446,22 +453,26 @@ private fun PromotionsSection(onViewAllClick: () -> Unit = {}) {
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            item {
+            items(promotions.size) { index ->
+                val promotion = promotions[index]
+                val discountText = if (promotion.discountType == "percentage") {
+                    "Giảm ${promotion.discountValue.toInt()}%"
+                } else {
+                    "Giảm ${(promotion.discountValue / 1000).toInt()}.000đ"
+                }
+                
+                val minOrderText = if (promotion.minOrderAmount > 0) {
+                    " cho hóa đơn từ ${(promotion.minOrderAmount / 1000).toInt()}.000đ"
+                } else {
+                    ""
+                }
+                
                 PromotionCard(
-                    icon = "🎫",
-                    title = "Giảm 10% cho hóa đơn từ 300.000đ",
-                    description = "Áp dụng cho toàn bộ món ăn tại bàn bạn.",
+                    icon = if (index % 2 == 0) "🎫" else "🎁",
+                    title = "$discountText$minOrderText",
+                    description = promotion.description ?: promotion.name,
                     actionText = "Tự động áp dụng khi thanh toán",
-                    backgroundColor = Color(0xFFFFF5F0)
-                )
-            }
-            item {
-                PromotionCard(
-                    icon = "🎁",
-                    title = "Tặng 1 trà đào combo 3 món",
-                    description = "Combo phù hợp nề trọn vị.",
-                    actionText = "Áp dụng khung giờ 14h-17h",
-                    backgroundColor = Color(0xFFF0FFF4)
+                    backgroundColor = if (index % 2 == 0) Color(0xFFFFF5F0) else Color(0xFFF0FFF4)
                 )
             }
         }
