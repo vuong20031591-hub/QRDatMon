@@ -45,31 +45,25 @@ fun OrderListScreen(
     viewModel: OrderViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("Chờ xác nhận", "Đang xử lý", "Hoàn thành")
+    val tabs = listOf("Đang xử lý", "Hoàn thành")
     
     val uiState by viewModel.uiState.collectAsState()
 
-    // Load orders based on selected tab
-    LaunchedEffect(selectedTab) {
-        val status = when (selectedTab) {
-            0 -> "pending"
-            1 -> null // Load all, filter in UI
-            2 -> null // Load all, filter in UI
-            else -> null
-        }
-        viewModel.loadOrders(status)
+    // Load all orders once
+    LaunchedEffect(Unit) {
+        viewModel.loadOrders(null)
     }
 
     val filteredOrders = when (selectedTab) {
-        0 -> uiState.orders.filter { it.status == OrderItemStatus.PENDING }
-        1 -> uiState.orders.filter { 
+        0 -> uiState.orders.filter { 
             it.status in listOf(
+                OrderItemStatus.PENDING,
                 OrderItemStatus.CONFIRMED,
                 OrderItemStatus.PREPARING,
                 OrderItemStatus.READY
             )
         }
-        2 -> uiState.orders.filter { 
+        1 -> uiState.orders.filter { 
             it.status in listOf(
                 OrderItemStatus.SERVED,
                 OrderItemStatus.COMPLETED

@@ -39,17 +39,17 @@ class OrderViewModel @Inject constructor(
                 val response = orderApi.getOrders(status = status)
 
                 if (response.success && response.data != null) {
-                    val orderListResponse = response.data!!
-                    val orders = orderListResponse.orders.map { orderDto ->
+                    val orderList = response.data!!
+                    val orders = orderList.map { orderDto ->
                         OrderItem(
                             id = orderDto.id,
                             orderNumber = "#${orderDto.orderNumber}",
-                            tableNumber = "N/A", // Table info not in order response
-                            items = orderDto.items.map { it.menuItemName },
+                            tableNumber = orderDto.bill?.tableNumber ?: "N/A",
+                            items = orderDto.items.map { it.itemName },
                             totalAmount = orderDto.totalAmount,
                             status = mapOrderStatus(orderDto.status),
                             createdAt = formatTime(orderDto.createdAt),
-                            customerName = null // Customer info not in order response
+                            customerName = orderDto.user?.name
                         )
                     }
 

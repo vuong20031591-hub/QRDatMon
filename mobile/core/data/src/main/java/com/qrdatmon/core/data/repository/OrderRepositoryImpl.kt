@@ -30,8 +30,8 @@ class OrderRepositoryImpl @Inject constructor(
         
         when (result) {
             is NetworkResult.Success -> {
-                val orders = result.data.orders
-                    .filter { it.userId == customerId }
+                val orders = result.data
+                    .filter { it.user?.id == customerId }
                     .map { it.toOrder() }
                 emit(orders)
             }
@@ -101,7 +101,7 @@ class OrderRepositoryImpl @Inject constructor(
         
         when (result) {
             is NetworkResult.Success -> {
-                val orders = result.data.orders.map { it.toOrder() }
+                val orders = result.data.map { it.toOrder() }
                 emit(orders)
             }
             is NetworkResult.Error -> {

@@ -104,8 +104,7 @@ class TableDetailViewModel @Inject constructor(
                     return@launch
                 }
 
-                val orderListResponse = ordersResponse.data!!
-                val orders = orderListResponse.orders
+                val orders = ordersResponse.data!!.orders
                 val allOrderItems = mutableListOf<OrderItemDetail>()
                 var subtotal = 0.0
                 var firstOrderTime = ""
@@ -119,7 +118,7 @@ class TableDetailViewModel @Inject constructor(
                         allOrderItems.add(
                             OrderItemDetail(
                                 id = item.id,
-                                name = item.menuItemName,
+                                name = item.itemName,
                                 quantity = item.quantity,
                                 price = item.unitPrice,
                                 subtotal = item.subtotal,
