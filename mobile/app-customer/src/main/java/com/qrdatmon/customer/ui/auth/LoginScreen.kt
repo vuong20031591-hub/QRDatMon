@@ -146,18 +146,11 @@ fun LoginScreen(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clip(CircleShape)
-                                .background(Color.White)
-                        ) {
-                            Image(
-                                painter = painterResource(id = android.R.drawable.ic_menu_gallery),
-                                contentDescription = "Google",
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
+                        Image(
+                            painter = painterResource(id = com.qrdatmon.customer.R.drawable.logo_google),
+                            contentDescription = "Google",
+                            modifier = Modifier.size(24.dp)
+                        )
                         Text(
                             text = "Đăng nhập bằng Google",
                             fontSize = 15.sp,
@@ -245,7 +238,7 @@ private fun AppBranding() {
                 contentAlignment = Alignment.Center
             ) {
                 Image(
-                    painter = painterResource(id = android.R.drawable.ic_menu_gallery),
+                    painter = painterResource(id = com.qrdatmon.customer.R.drawable.logo),
                     contentDescription = "Logo",
                     modifier = Modifier.size(28.dp)
                 )

@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.qrdatmon.customer.R
 import kotlinx.coroutines.delay
 
 @Composable
@@ -76,31 +77,15 @@ fun SimpleSplashScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Logo Container with Orange Circle
-                    Box(
+                    // App Logo
+                    Image(
+                        painter = painterResource(id = R.drawable.logo),
+                        contentDescription = "QRDatMon Logo",
                         modifier = Modifier
-                            .size(96.dp)
-                            .clip(CircleShape)
-                            .background(Color.White)
-                            .padding(3.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(90.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFFF6F3C)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            // TODO: Replace with actual food/logo image
-                            Image(
-                                painter = painterResource(id = android.R.drawable.ic_menu_gallery),
-                                contentDescription = "App Logo",
-                                modifier = Modifier.size(60.dp),
-                                contentScale = ContentScale.Fit
-                            )
-                        }
-                    }
+                            .size(120.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
 
                     // Badge
                     Box(
@@ -122,17 +107,17 @@ fun SimpleSplashScreen(
 
                     // Title
                     Text(
-                        text = "Menu Tại Bàn",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        text = "QRDatMon",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
                         color = Color(0xFF222222)
                     )
 
                     // Description
                     Text(
-                        text = "Gọi món nhanh, trải nghiệm trọn vẹn",
+                        text = "Đặt món nhanh - Phục vụ tức thì",
                         fontSize = 14.sp,
-                        fontWeight = FontWeight.Normal,
+                        fontWeight = FontWeight.Medium,
                         color = Color(0xFF666666),
                         textAlign = TextAlign.Center,
                         modifier = Modifier
