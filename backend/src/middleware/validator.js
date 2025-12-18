@@ -173,24 +173,33 @@ const menuSchemas = {
   // Query menu items
   queryMenu: Joi.object({
     category: commonSchemas.objectId,
-    status: Joi.string().valid('available', 'out_of_stock', 'hidden'),
+    status: Joi.string().valid('available', 'out_of_stock', 'suspended'),
     minPrice: commonSchemas.price,
     maxPrice: commonSchemas.price,
+    isPopular: Joi.string().valid('true', 'false'),
+    isNew: Joi.string().valid('true', 'false'),
     search: Joi.string().trim().max(100),
     page: commonSchemas.page,
     limit: commonSchemas.limit,
-    sortBy: Joi.string().valid('name', 'price', 'createdAt', 'popularity'),
+    sortBy: Joi.string().valid('name', 'price', 'createdAt', 'sortOrder', 'popularity'),
     sortOrder: commonSchemas.sortOrder
   }),
 
   // Create menu item
   createMenuItem: Joi.object({
     name: Joi.string().trim().min(1).max(200).required(),
-    description: Joi.string().trim().max(1000),
+    description: Joi.string().trim().max(1000).allow(''),
     category: commonSchemas.objectId.required(),
     price: commonSchemas.price.required(),
-    images: Joi.array().items(commonSchemas.url).max(10),
-    status: Joi.string().valid('available', 'out_of_stock', 'hidden').default('available'),
+    costPrice: commonSchemas.price.default(0),
+    unit: Joi.string().trim().max(50).default('phần'),
+    imageUrl: Joi.string().trim().max(500).allow(''),
+    images: Joi.array().items(Joi.string().trim().max(500)).max(10),
+    status: Joi.string().valid('available', 'out_of_stock', 'suspended').default('available'),
+    isPopular: Joi.boolean().default(false),
+    isNew: Joi.boolean().default(false),
+    preparationTime: Joi.number().integer().min(1).max(180).default(15),
+    sortOrder: Joi.number().integer().min(0).default(0),
     tags: Joi.array().items(Joi.string().trim().max(50)).max(10),
     toppingGroups: Joi.array().items(commonSchemas.objectId)
   }),
@@ -198,11 +207,18 @@ const menuSchemas = {
   // Update menu item
   updateMenuItem: Joi.object({
     name: Joi.string().trim().min(1).max(200),
-    description: Joi.string().trim().max(1000),
+    description: Joi.string().trim().max(1000).allow(''),
     category: commonSchemas.objectId,
     price: commonSchemas.price,
-    images: Joi.array().items(commonSchemas.url).max(10),
-    status: Joi.string().valid('available', 'out_of_stock', 'hidden'),
+    costPrice: commonSchemas.price,
+    unit: Joi.string().trim().max(50),
+    imageUrl: Joi.string().trim().max(500).allow(''),
+    images: Joi.array().items(Joi.string().trim().max(500)).max(10),
+    status: Joi.string().valid('available', 'out_of_stock', 'suspended'),
+    isPopular: Joi.boolean(),
+    isNew: Joi.boolean(),
+    preparationTime: Joi.number().integer().min(1).max(180),
+    sortOrder: Joi.number().integer().min(0),
     tags: Joi.array().items(Joi.string().trim().max(50)).max(10),
     toppingGroups: Joi.array().items(commonSchemas.objectId)
   })

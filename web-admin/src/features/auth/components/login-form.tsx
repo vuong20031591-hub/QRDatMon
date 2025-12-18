@@ -43,7 +43,9 @@ export function LoginForm() {
       });
 
       const result = response.data.data || response.data;
-      const { user, staff, accessToken, refreshToken } = result;
+      const { user, accessToken, refreshToken } = result;
+      // staff is nested inside user from BE response
+      const staff = user.staff || null;
       
       // Store tokens
       localStorage.setItem('accessToken', accessToken);
@@ -75,6 +77,9 @@ export function LoginForm() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="space-y-1">
+        <div className="flex justify-center mb-2">
+          <img src="/logo.jpg" alt="QRDatMon" className="h-16 w-16 rounded-lg object-cover" />
+        </div>
         <CardTitle className="text-2xl font-bold text-center">
           QRDatMon Admin
         </CardTitle>

@@ -23,6 +23,7 @@ const Printer = require('./Printer');
 const Setting = require('./Setting');
 const Inventory = require('./Inventory');
 const InventoryLog = require('./InventoryLog');
+const ImageMetadata = require('./ImageMetadata');
 
 module.exports = {
   User,
@@ -49,5 +50,6 @@ module.exports = {
   Printer,
   Setting,
   Inventory,
-  InventoryLog
+  InventoryLog,
+  ImageMetadata
 };

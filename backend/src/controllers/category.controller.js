@@ -86,18 +86,20 @@ const reorderCategories = asyncHandler(async (req, res) => {
 });
 
 /**
- * Delete a category (soft delete)
+ * Delete a category (permanent delete with image cleanup)
  * DELETE /api/categories/:id
+ * Use ?soft=true for soft delete (deactivate only)
  */
 const deleteCategory = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { permanent } = req.query;
+  const { soft } = req.query;
 
   let result;
-  if (permanent === 'true') {
-    result = await categoryService.permanentDeleteCategory(id);
-  } else {
+  if (soft === 'true') {
     result = await categoryService.deleteCategory(id);
+  } else {
+    // Default: permanent delete with image cleanup
+    result = await categoryService.permanentDeleteCategory(id);
   }
 
   return ok(res, result, 'Category deleted successfully');

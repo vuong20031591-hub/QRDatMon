@@ -62,10 +62,13 @@ const getMyProfile = asyncHandler(async (req, res) => {
  * Admin only
  */
 const createStaff = asyncHandler(async (req, res) => {
-  const { userId, employeeCode, role, hireDate } = req.body;
+  const { userId, email, name, phone, employeeCode, role, hireDate } = req.body;
 
   const staff = await staffService.createStaff({
     userId,
+    email,
+    name,
+    phone,
     employeeCode,
     role,
     hireDate

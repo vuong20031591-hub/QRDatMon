@@ -146,14 +146,15 @@ const createTable = asyncHandler(async (req, res) => {
  */
 const updateTable = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { tableNumber, area, capacity, position, isActive } = req.body;
+  const { tableNumber, area, capacity, position, isActive, status } = req.body;
 
   const table = await tableService.updateTable(id, {
     tableNumber,
     area,
     capacity,
     position,
-    isActive
+    isActive,
+    status
   });
 
   return ok(res, { table }, 'Table updated successfully');

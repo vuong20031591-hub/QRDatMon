@@ -197,7 +197,17 @@ const getPopularItemsReport = async (options = {}) => {
         as: 'menuItem'
       }
     },
-    { $unwind: { path: '$menuItem', preserveNullAndEmptyArrays: true } }
+    { $unwind: { path: '$menuItem', preserveNullAndEmptyArrays: true } },
+    // Lookup category name
+    {
+      $lookup: {
+        from: 'categories',
+        localField: 'menuItem.category',
+        foreignField: '_id',
+        as: 'categoryInfo'
+      }
+    },
+    { $unwind: { path: '$categoryInfo', preserveNullAndEmptyArrays: true } }
   );
 
   const popularItems = await Order.aggregate(pipeline);
@@ -221,6 +231,49 @@ const getPopularItemsReport = async (options = {}) => {
 
   const leastPopularItems = await Order.aggregate(leastPopularPipeline);
 
+  // Category performance aggregation
+  const categoryPerformance = await Order.aggregate([
+    { $match: matchStage },
+    { $unwind: '$items' },
+    { $match: { 'items.status': { $ne: 'cancelled' } } },
+    {
+      $lookup: {
+        from: 'menuitems',
+        localField: 'items.menuItem',
+        foreignField: '_id',
+        as: 'menuItemInfo'
+      }
+    },
+    { $unwind: { path: '$menuItemInfo', preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: 'categories',
+        localField: 'menuItemInfo.category',
+        foreignField: '_id',
+        as: 'categoryInfo'
+      }
+    },
+    { $unwind: { path: '$categoryInfo', preserveNullAndEmptyArrays: true } },
+    {
+      $group: {
+        _id: '$menuItemInfo.category',
+        categoryName: { $first: '$categoryInfo.name' },
+        totalQuantity: { $sum: '$items.quantity' },
+        totalRevenue: { $sum: '$items.subtotal' },
+        itemCount: { $addToSet: '$items.menuItem' }
+      }
+    },
+    {
+      $project: {
+        categoryName: 1,
+        totalQuantity: 1,
+        totalRevenue: 1,
+        itemCount: { $size: '$itemCount' }
+      }
+    },
+    { $sort: { totalRevenue: -1 } }
+  ]);
+
   return {
     period: { startDate: matchStage.createdAt.$gte, endDate: matchStage.createdAt.$lte },
     popularItems: popularItems.map((item, index) => ({
@@ -228,7 +281,7 @@ const getPopularItemsReport = async (options = {}) => {
       id: item._id,
       name: item.itemName || item.menuItem?.name || 'Unknown',
       imageUrl: item.menuItem?.imageUrl || null,
-      category: item.menuItem?.category || null,
+      category: item.categoryInfo?.name || null,
       totalQuantity: item.totalQuantity,
       totalRevenue: item.totalRevenue,
       orderCount: item.orderCount
@@ -239,6 +292,13 @@ const getPopularItemsReport = async (options = {}) => {
       name: item.itemName || 'Unknown',
       totalQuantity: item.totalQuantity,
       totalRevenue: item.totalRevenue
+    })),
+    categoryPerformance: categoryPerformance.map(cat => ({
+      categoryId: cat._id,
+      name: cat.categoryName || 'Không phân loại',
+      salesCount: cat.totalQuantity,
+      revenue: cat.totalRevenue,
+      itemCount: cat.itemCount
     }))
   };
 };
@@ -437,7 +497,7 @@ const getStaffPerformanceReport = async (options = {}) => {
     },
     {
       $lookup: {
-        from: 'staff',
+        from: 'staffs',
         localField: '_id',
         foreignField: '_id',
         as: 'staffInfo'
@@ -476,7 +536,7 @@ const getStaffPerformanceReport = async (options = {}) => {
     },
     {
       $lookup: {
-        from: 'staff',
+        from: 'staffs',
         localField: '_id',
         foreignField: '_id',
         as: 'staffInfo'
@@ -515,7 +575,7 @@ const getStaffPerformanceReport = async (options = {}) => {
     },
     {
       $lookup: {
-        from: 'staff',
+        from: 'staffs',
         localField: '_id',
         foreignField: '_id',
         as: 'staffInfo'

@@ -697,6 +697,64 @@ const cancelBill = async (billId, reason, staff) => {
 };
 
 /**
+ * Get all bills with filters (Admin/Staff)
+ * @param {Object} filters - Query filters
+ * @param {Object} pagination - Pagination options
+ * @returns {Promise<Object>} Paginated bills
+ */
+const getBills = async (filters = {}, pagination = {}) => {
+  const { status, tableId, startDate, endDate, search } = filters;
+  const { page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = pagination;
+
+  const query = {};
+
+  if (status) {
+    query.status = status;
+  }
+
+  if (tableId) {
+    query.table = tableId;
+  }
+
+  if (startDate || endDate) {
+    query.createdAt = {};
+    if (startDate) query.createdAt.$gte = new Date(startDate);
+    if (endDate) query.createdAt.$lte = new Date(endDate);
+  }
+
+  if (search) {
+    query.billNumber = { $regex: search, $options: 'i' };
+  }
+
+  const skip = (page - 1) * limit;
+  const sort = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
+
+  const [bills, total] = await Promise.all([
+    Bill.find(query)
+      .populate('table', 'tableNumber area')
+      .populate('promotion', 'code name')
+      .populate('cashier', 'name employeeCode')
+      .sort(sort)
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    Bill.countDocuments(query)
+  ]);
+
+  return {
+    bills: bills.map(bill => formatBill(bill)),
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      hasNextPage: page < Math.ceil(total / limit),
+      hasPrevPage: page > 1
+    }
+  };
+};
+
+/**
  * Get bill history for user
  * @param {string} userId - User ID
  * @param {Object} options - Query options
@@ -835,6 +893,7 @@ const formatBill = (bill, orders = []) => {
 };
 
 module.exports = {
+  getBills,
   getBillById,
   getBillByTable,
   getBillBySession,

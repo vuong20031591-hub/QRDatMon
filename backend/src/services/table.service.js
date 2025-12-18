@@ -460,7 +460,7 @@ const updateTable = async (tableId, data) => {
   }
 
   // Update allowed fields
-  const allowedFields = ['tableNumber', 'area', 'capacity', 'position', 'isActive'];
+  const allowedFields = ['tableNumber', 'area', 'capacity', 'position', 'isActive', 'status'];
   allowedFields.forEach(field => {
     if (data[field] !== undefined) {
       table[field] = data[field];

@@ -226,7 +226,14 @@ const getOrders = async (filters = {}, pagination = {}) => {
   const [orders, total] = await Promise.all([
     Order.find(query)
       .populate('user', 'name email')
-      .populate('bill', 'billNumber table')
+      .populate({
+        path: 'bill',
+        select: 'billNumber table',
+        populate: {
+          path: 'table',
+          select: 'tableNumber'
+        }
+      })
       .populate('confirmedBy', 'name employeeCode')
       .sort(sort)
       .skip(skip)
@@ -256,7 +263,14 @@ const getOrders = async (filters = {}, pagination = {}) => {
 const getOrderById = async (orderId) => {
   const order = await Order.findById(orderId)
     .populate('user', 'name email')
-    .populate('bill', 'billNumber table totalAmount status')
+    .populate({
+      path: 'bill',
+      select: 'billNumber table totalAmount status',
+      populate: {
+        path: 'table',
+        select: 'tableNumber'
+      }
+    })
     .populate('confirmedBy', 'name employeeCode')
     .populate('cancelledBy', 'name employeeCode')
     .populate({

@@ -109,16 +109,44 @@ const getStaffByUserId = async (userId) => {
  * @returns {Promise<Object>} Created staff
  */
 const createStaff = async (data) => {
-  const { userId, employeeCode, role, hireDate } = data;
+  const { userId, email, name, phone, employeeCode, role, hireDate } = data;
 
-  // Check if user exists
-  const user = await User.findById(userId);
-  if (!user) {
-    throw new NotFoundError('User not found');
+  let user;
+
+  // If userId provided, use existing user
+  if (userId) {
+    user = await User.findById(userId);
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+  } else if (email) {
+    // Create new user with email
+    // Check if email already exists
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      // Check if this user is already staff
+      const existingStaff = await Staff.findOne({ user: existingUser._id });
+      if (existingStaff) {
+        throw new ConflictError('Email này đã được sử dụng cho nhân viên khác');
+      }
+      user = existingUser;
+    } else {
+      // Create new user
+      user = await User.create({
+        email: email.toLowerCase(),
+        name: name || email.split('@')[0],
+        phone: phone || null,
+        authProvider: 'local',
+        isGuest: false,
+        isActive: true
+      });
+    }
+  } else {
+    throw new ValidationError('Vui lòng cung cấp userId hoặc email');
   }
 
   // Check if user is already staff
-  const existingStaff = await Staff.findOne({ user: userId });
+  const existingStaff = await Staff.findOne({ user: user._id });
   if (existingStaff) {
     throw new ConflictError('User is already a staff member');
   }
@@ -130,7 +158,7 @@ const createStaff = async (data) => {
   }
 
   const staff = await Staff.create({
-    user: userId,
+    user: user._id,
     employeeCode: employeeCode.toUpperCase(),
     role,
     hireDate: hireDate || new Date(),
@@ -138,7 +166,7 @@ const createStaff = async (data) => {
   });
 
   // Update user role and mark as non-guest (staff cannot be guest)
-  await User.findByIdAndUpdate(userId, { role, isGuest: false });
+  await User.findByIdAndUpdate(user._id, { role, isGuest: false });
 
   return getStaffById(staff._id);
 };

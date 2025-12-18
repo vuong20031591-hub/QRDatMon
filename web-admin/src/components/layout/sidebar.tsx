@@ -11,7 +11,6 @@ import {
   UtensilsCrossed,
   TableProperties,
   ClipboardList,
-  ChefHat,
   Users,
   Receipt,
   Tag,
@@ -40,7 +39,6 @@ const navItems: NavItem[] = [
   { title: 'Thực đơn', href: '/menu', icon: UtensilsCrossed, roles: ['admin', 'manager'] },
   { title: 'Bàn', href: '/tables', icon: TableProperties, roles: ['admin', 'manager', 'waiter'] },
   { title: 'Đơn hàng', href: '/orders', icon: ClipboardList, roles: ['admin', 'manager', 'waiter', 'cashier'] },
-  { title: 'Bếp (KDS)', href: '/kds', icon: ChefHat, roles: ['admin', 'manager', 'kitchen'] },
   { title: 'Nhân viên', href: '/staff', icon: Users, roles: ['admin', 'manager'] },
   { title: 'Hóa đơn', href: '/bills', icon: Receipt, roles: ['admin', 'manager', 'cashier'] },
   { title: 'Khuyến mãi', href: '/promotions', icon: Tag, roles: ['admin', 'manager'] },
@@ -66,16 +64,20 @@ export function Sidebar() {
     >
       {/* Logo */}
       <div className="flex h-16 items-center justify-between border-b px-4">
-        {!isCollapsed && (
-          <Link href="/" className="flex items-center gap-2">
-            <span className="text-xl font-bold text-primary">QRDatMon</span>
+        <Link href="/" className={cn("flex items-center gap-2", isCollapsed && "hidden")}>
+          <img src="/logo.jpg" alt="QRDatMon" className="h-8 w-8 rounded-md object-cover" />
+          <span className="text-xl font-bold text-primary">QRDatMon</span>
+        </Link>
+        {isCollapsed && (
+          <Link href="/" className="mx-auto">
+            <img src="/logo.jpg" alt="QRDatMon" className="h-8 w-8 rounded-md object-cover" />
           </Link>
         )}
         <Button
           variant="ghost"
           size="icon"
           onClick={toggleCollapse}
-          className={cn(isCollapsed && 'mx-auto')}
+          className={cn(isCollapsed && "absolute right-1 top-4")}
         >
           <ChevronLeft className={cn('h-4 w-4 transition-transform', isCollapsed && 'rotate-180')} />
         </Button>

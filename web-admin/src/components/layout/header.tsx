@@ -4,8 +4,8 @@
 
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { Moon, Sun, Bell, LogOut, User } from 'lucide-react';
+import { useRouter, usePathname } from 'next/navigation';
+import { Moon, Sun, LogOut, User } from 'lucide-react';
 import { useTheme } from 'next-themes';
 
 import { Button } from '@/components/ui/button';
@@ -21,12 +21,39 @@ import {
 import { useAuth } from '@/hooks/use-auth';
 import { useSidebarStore } from '@/stores/sidebar-store';
 import { cn } from '@/lib/utils';
+import { NotificationDropdown } from '@/features/notifications';
+
+// Map pathname to page title
+const pageTitles: Record<string, string> = {
+  '/': 'Dashboard',
+  '/orders': 'Quản lý đơn hàng',
+  '/tables': 'Quản lý bàn',
+  '/menu': 'Quản lý thực đơn',
+  '/staff': 'Quản lý nhân viên',
+  '/inventory': 'Quản lý kho',
+  '/reviews': 'Đánh giá',
+  '/reports': 'Báo cáo',
+  '/settings': 'Cài đặt',
+  '/promotions': 'Khuyến mãi',
+  '/bills': 'Hóa đơn',
+  '/profile': 'Hồ sơ cá nhân',
+};
 
 export function Header() {
   const router = useRouter();
+  const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const { user, staff, logout } = useAuth();
   const { isCollapsed } = useSidebarStore();
+
+  // Get page title from pathname
+  const getPageTitle = () => {
+    // Exact match first
+    if (pageTitles[pathname]) return pageTitles[pathname];
+    // Check for partial match (e.g., /orders/123 -> Quản lý đơn hàng)
+    const basePath = '/' + pathname.split('/')[1];
+    return pageTitles[basePath] || 'Dashboard';
+  };
 
   const handleLogout = () => {
     logout();
@@ -45,23 +72,18 @@ export function Header() {
   return (
     <header
       className={cn(
-        'fixed top-0 z-30 flex h-16 items-center justify-between border-b bg-background px-4 transition-all duration-300',
+        'fixed top-0 z-40 flex h-16 items-center justify-between border-b bg-white dark:bg-zinc-950 px-4 transition-all duration-300',
         isCollapsed ? 'left-16' : 'left-64',
         'right-0'
       )}
     >
       <div className="flex items-center gap-4">
-        <h1 className="text-lg font-semibold">Dashboard</h1>
+        <h1 className="text-lg font-semibold">{getPageTitle()}</h1>
       </div>
 
       <div className="flex items-center gap-2">
         {/* Notifications */}
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
-          <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
-            3
-          </span>
-        </Button>
+        <NotificationDropdown />
 
         {/* Theme Toggle */}
         <Button
@@ -96,7 +118,7 @@ export function Header() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push('/profile')}>
               <User className="mr-2 h-4 w-4" />
               Hồ sơ
             </DropdownMenuItem>

@@ -26,7 +26,8 @@ export function useAuth() {
   };
   
   const hasAnyRole = (roles: UserRole[]): boolean => {
-    if (!role) return false;
+    // Nếu chưa có role (chưa đăng nhập), hiển thị tất cả menu cho development
+    if (!role) return true;
     return roles.includes(role);
   };
   

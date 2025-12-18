@@ -376,6 +376,63 @@ const getUserReviews = async (userId, pagination = {}) => {
 };
 
 /**
+ * Update a review
+ * @param {string} reviewId - Review ID
+ * @param {Object} data - Update data
+ * @param {string} userId - User ID (for permission check)
+ * @param {boolean} isAdmin - Is admin user
+ * @returns {Promise<Object>} Updated review
+ */
+const updateReview = async (reviewId, data, userId, isAdmin = false) => {
+  const review = await Review.findById(reviewId);
+  if (!review) {
+    throw new NotFoundError('Review not found');
+  }
+
+  // Check permission: only owner or admin can update
+  if (!isAdmin && review.user.toString() !== userId) {
+    throw new ForbiddenError('You can only update your own reviews');
+  }
+
+  const { foodRating, serviceRating, ambianceRating, comment, isAnonymous, itemReviews } = data;
+
+  // Validate ratings if provided
+  if (foodRating !== undefined && (foodRating < 1 || foodRating > 5)) {
+    throw new ValidationError('Food rating must be between 1 and 5');
+  }
+  if (serviceRating !== undefined && (serviceRating < 1 || serviceRating > 5)) {
+    throw new ValidationError('Service rating must be between 1 and 5');
+  }
+  if (ambianceRating !== undefined && (ambianceRating < 1 || ambianceRating > 5)) {
+    throw new ValidationError('Ambiance rating must be between 1 and 5');
+  }
+
+  // Update fields
+  if (foodRating !== undefined) review.foodRating = foodRating;
+  if (serviceRating !== undefined) review.serviceRating = serviceRating;
+  if (ambianceRating !== undefined) review.ambianceRating = ambianceRating;
+  if (comment !== undefined) review.comment = comment;
+  if (isAnonymous !== undefined) review.isAnonymous = isAnonymous;
+
+  // Update item reviews if provided
+  if (itemReviews !== undefined) {
+    for (const itemReview of itemReviews) {
+      if (itemReview.rating < 1 || itemReview.rating > 5) {
+        throw new ValidationError('Item rating must be between 1 and 5');
+      }
+      const menuItem = await MenuItem.findById(itemReview.menuItem);
+      if (!menuItem) {
+        throw new NotFoundError(`Menu item ${itemReview.menuItem} not found`);
+      }
+    }
+    review.itemReviews = itemReviews;
+  }
+
+  await review.save();
+  return getReviewById(reviewId);
+};
+
+/**
  * Delete a review (admin only)
  * @param {string} reviewId - Review ID
  * @returns {Promise<void>}
@@ -440,6 +497,7 @@ module.exports = {
   getItemReviews,
   getReviewStats,
   getUserReviews,
+  updateReview,
   deleteReview,
   formatReview
 };
