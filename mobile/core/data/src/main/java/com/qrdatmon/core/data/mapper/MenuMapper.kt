@@ -10,7 +10,7 @@ import com.qrdatmon.core.network.dto.menu.ToppingResponse
 fun MenuItemResponse.toMenuItem(): MenuItem {
     return MenuItem(
         id = id,
-        categoryId = categoryId,
+        categoryId = category?.id ?: "",
         name = name,
         description = description,
         imageUrl = imageUrl,
