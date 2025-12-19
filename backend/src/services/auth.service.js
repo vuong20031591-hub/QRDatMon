@@ -348,6 +348,154 @@ const loginWithPassword = async (email, password) => {
   };
 };
 
+// In-memory OTP storage (use Redis in production)
+const otpStore = new Map();
+
+/**
+ * Send OTP to phone number via TextBee
+ * @param {string} phoneNumber - Phone number (format: +84xxxxxxxxx or 0xxxxxxxxx)
+ * @returns {Promise<Object>} Success response
+ */
+const sendOtp = async (phoneNumber) => {
+  const axios = require('axios');
+  
+  // Format phone number
+  let formattedPhone = phoneNumber.trim();
+  if (formattedPhone.startsWith('0')) {
+    formattedPhone = '+84' + formattedPhone.substring(1);
+  } else if (!formattedPhone.startsWith('+84')) {
+    formattedPhone = '+84' + formattedPhone;
+  }
+
+  // Generate 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  
+  // Store OTP with expiry (5 minutes)
+  const expiresAt = Date.now() + parseInt(process.env.OTP_EXPIRES_IN || 300) * 1000;
+  otpStore.set(formattedPhone, {
+    otp,
+    expiresAt,
+    attempts: 0
+  });
+
+  // Send OTP via TextBee
+  try {
+    const message = `Mã OTP của bạn là: ${otp}. Mã có hiệu lực trong 5 phút.`;
+    
+    const response = await axios.post(
+      `${process.env.TEXTBEE_API_URL}/send`,
+      {
+        device_id: process.env.TEXTBEE_DEVICE_ID,
+        phone: formattedPhone,
+        message: message
+      },
+      {
+        headers: {
+          'x-api-key': process.env.TEXTBEE_API_KEY,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    console.log(`[Auth] OTP sent to ${formattedPhone}: ${otp}`);
+    
+    return {
+      success: true,
+      phoneNumber: formattedPhone,
+      expiresIn: parseInt(process.env.OTP_EXPIRES_IN || 300)
+    };
+  } catch (error) {
+    console.error('[Auth] Failed to send OTP via TextBee:', error.message);
+    
+    // For development, still return success even if SMS fails
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Auth] DEV MODE - OTP for ${formattedPhone}: ${otp}`);
+      return {
+        success: true,
+        phoneNumber: formattedPhone,
+        expiresIn: parseInt(process.env.OTP_EXPIRES_IN || 300),
+        devOtp: otp // Only in development
+      };
+    }
+    
+    throw new Error('Không thể gửi OTP. Vui lòng thử lại sau.');
+  }
+};
+
+/**
+ * Verify OTP and create/login user
+ * @param {string} phoneNumber - Phone number
+ * @param {string} otp - OTP code
+ * @returns {Promise<Object>} User data with tokens
+ */
+const verifyOtp = async (phoneNumber, otp) => {
+  // Format phone number
+  let formattedPhone = phoneNumber.trim();
+  if (formattedPhone.startsWith('0')) {
+    formattedPhone = '+84' + formattedPhone.substring(1);
+  } else if (!formattedPhone.startsWith('+84')) {
+    formattedPhone = '+84' + formattedPhone;
+  }
+
+  // Get stored OTP
+  const storedData = otpStore.get(formattedPhone);
+  
+  if (!storedData) {
+    throw new AuthenticationError('Mã OTP không tồn tại hoặc đã hết hạn');
+  }
+
+  // Check expiry
+  if (Date.now() > storedData.expiresAt) {
+    otpStore.delete(formattedPhone);
+    throw new AuthenticationError('Mã OTP đã hết hạn');
+  }
+
+  // Check attempts
+  if (storedData.attempts >= parseInt(process.env.OTP_MAX_ATTEMPTS || 3)) {
+    otpStore.delete(formattedPhone);
+    throw new AuthenticationError('Đã vượt quá số lần thử. Vui lòng yêu cầu mã mới');
+  }
+
+  // Verify OTP
+  if (storedData.otp !== otp) {
+    storedData.attempts++;
+    throw new AuthenticationError('Mã OTP không đúng');
+  }
+
+  // OTP verified, delete from store
+  otpStore.delete(formattedPhone);
+
+  // Find or create user
+  let user = await User.findOne({ phone: formattedPhone });
+
+  if (!user) {
+    // Create new user
+    user = await User.create({
+      phone: formattedPhone,
+      name: `User ${formattedPhone.substring(formattedPhone.length - 4)}`,
+      authProvider: AUTH_PROVIDER.PHONE,
+      isGuest: false,
+      isActive: true
+    });
+  }
+
+  // Check if user is active
+  if (!user.isActive) {
+    throw new AuthenticationError('Tài khoản đã bị vô hiệu hóa');
+  }
+
+  // Check if user is a staff member
+  const staff = await Staff.findOne({ user: user._id, isActive: true });
+
+  // Generate tokens
+  const tokens = generateTokenPair(user, staff);
+
+  return {
+    user: formatUserResponse(user, staff),
+    ...tokens
+  };
+};
+
 module.exports = {
   verifyFirebaseToken,
   createGuestUser,
@@ -356,6 +504,8 @@ module.exports = {
   linkGuestToFirebase,
   logoutUser,
   loginWithPassword,
+  sendOtp,
+  verifyOtp,
   generateTokenPair,
   formatUserResponse,
   validateStaffAccess

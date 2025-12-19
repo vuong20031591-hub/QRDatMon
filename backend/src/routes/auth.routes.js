@@ -110,4 +110,43 @@ router.put(
   authController.updateProfile
 );
 
+/**
+ * @route   POST /api/auth/send-otp
+ * @desc    Send OTP to phone number
+ * @access  Public
+ */
+router.post(
+  '/send-otp',
+  loginLimiter,
+  validate(Joi.object({
+    phoneNumber: Joi.string().pattern(/^(\+84|0)[0-9]{9,10}$/).required()
+      .messages({
+        'string.pattern.base': 'Số điện thoại không hợp lệ'
+      })
+  })),
+  authController.sendOtp
+);
+
+/**
+ * @route   POST /api/auth/verify-otp
+ * @desc    Verify OTP and login/register user
+ * @access  Public
+ */
+router.post(
+  '/verify-otp',
+  loginLimiter,
+  validate(Joi.object({
+    phoneNumber: Joi.string().pattern(/^(\+84|0)[0-9]{9,10}$/).required()
+      .messages({
+        'string.pattern.base': 'Số điện thoại không hợp lệ'
+      }),
+    otp: Joi.string().length(6).pattern(/^[0-9]+$/).required()
+      .messages({
+        'string.length': 'Mã OTP phải có 6 chữ số',
+        'string.pattern.base': 'Mã OTP chỉ chứa số'
+      })
+  })),
+  authController.verifyOtp
+);
+
 module.exports = router;

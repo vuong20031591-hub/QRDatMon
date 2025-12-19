@@ -167,10 +167,46 @@ const emailLogin = asyncHandler(async (req, res) => {
   return ok(res, result, "Đăng nhập thành công");
 });
 
+/**
+ * Send OTP Handler
+ * POST /api/auth/send-otp
+ * Sends OTP to phone number via TextBee
+ */
+const sendOtp = asyncHandler(async (req, res) => {
+  const { phoneNumber } = req.body;
+
+  if (!phoneNumber) {
+    throw new ValidationError("Số điện thoại là bắt buộc");
+  }
+
+  const result = await authService.sendOtp(phoneNumber);
+
+  return ok(res, result, "Mã OTP đã được gửi");
+});
+
+/**
+ * Verify OTP Handler
+ * POST /api/auth/verify-otp
+ * Verifies OTP and creates/logs in user
+ */
+const verifyOtp = asyncHandler(async (req, res) => {
+  const { phoneNumber, otp } = req.body;
+
+  if (!phoneNumber || !otp) {
+    throw new ValidationError("Số điện thoại và mã OTP là bắt buộc");
+  }
+
+  const result = await authService.verifyOtp(phoneNumber, otp);
+
+  return ok(res, result, "Xác thực thành công");
+});
+
 module.exports = {
   googleLogin,
   guestLogin,
   emailLogin,
+  sendOtp,
+  verifyOtp,
   refreshToken,
   logout,
   getMe,
