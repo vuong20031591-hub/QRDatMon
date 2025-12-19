@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import com.qrdatmon.staff.ui.order.OrderListScreen
 import com.qrdatmon.staff.ui.profile.ProfileScreen
 import com.qrdatmon.staff.ui.table.TableListScreen
+import com.qrdatmon.staff.ui.theme.Dimensions
 
 sealed class BottomNavItem(
     val route: String,

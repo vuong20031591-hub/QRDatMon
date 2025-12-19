@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.qrdatmon.staff.R
+import com.qrdatmon.staff.ui.theme.Dimensions
 
 data class Table(
     val id: String,
@@ -77,6 +78,7 @@ fun TableListScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF5F5F5))
+            .padding(top = Dimensions.statusBarPadding)
     ) {
         // Header
         Surface(

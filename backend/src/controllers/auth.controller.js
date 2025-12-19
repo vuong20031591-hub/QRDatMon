@@ -1,10 +1,12 @@
 /**
  * Authentication Controller
- * Handles authentication endpoints: Google login, guest login, token refresh, logout, and get current user
- * Requirements: 1.1, 1.4, 1.5
+ * Handles authentication endpoints: Google login, guest login, phone OTP login, token refresh, logout, and get current user
+ * Requirements: 1.1, 1.4, 1.5, 2.1, 2.2, 2.3, 3.1, 3.2, 3.3
  */
 
 const authService = require("../services/auth.service");
+const otpService = require("../services/otp.service");
+const { getClientInfo } = require("../services/otp-audit.service");
 const { asyncHandler } = require("../middleware/errorHandler");
 const { ok, created } = require("../utils/response");
 const { ValidationError } = require("../utils/errors");
@@ -167,6 +169,77 @@ const emailLogin = asyncHandler(async (req, res) => {
   return ok(res, result, "Đăng nhập thành công");
 });
 
+/**
+ * Send Phone OTP Handler
+ * POST /api/auth/phone/send-otp
+ * Sends OTP to the provided phone number
+ * Requirements: 1.1, 1.3, 1.4, 5.4, 5.5
+ */
+const sendPhoneOtp = asyncHandler(async (req, res) => {
+  const { phone } = req.body;
+
+  if (!phone) {
+    throw new ValidationError("Số điện thoại là bắt buộc");
+  }
+
+  // Get client info for audit logging (Requirement 5.4)
+  const clientInfo = getClientInfo(req);
+
+  const result = await otpService.sendOtp(phone, clientInfo);
+
+  return ok(res, result, result.message);
+});
+
+/**
+ * Verify Phone OTP Handler
+ * POST /api/auth/phone/verify-otp
+ * Verifies OTP and logs in/creates user
+ * Requirements: 2.1, 2.2, 2.3, 2.7, 2.8, 5.4, 5.5
+ */
+const verifyPhoneOtp = asyncHandler(async (req, res) => {
+  const { phone, otp } = req.body;
+
+  if (!phone || !otp) {
+    throw new ValidationError("Số điện thoại và mã OTP là bắt buộc");
+  }
+
+  // Get client info for audit logging (Requirement 5.4)
+  const clientInfo = getClientInfo(req);
+
+  // Verify OTP
+  const verifyResult = await otpService.verifyOtp(phone, otp, clientInfo);
+
+  if (!verifyResult.valid) {
+    throw new ValidationError(verifyResult.error);
+  }
+
+  // Create or get user and generate tokens
+  const result = await authService.loginWithPhone(phone);
+
+  return ok(res, result, "Đăng nhập thành công");
+});
+
+/**
+ * Resend Phone OTP Handler
+ * POST /api/auth/phone/resend-otp
+ * Resends OTP to the provided phone number
+ * Requirements: 3.1, 3.2, 3.3, 5.4, 5.5
+ */
+const resendPhoneOtp = asyncHandler(async (req, res) => {
+  const { phone } = req.body;
+
+  if (!phone) {
+    throw new ValidationError("Số điện thoại là bắt buộc");
+  }
+
+  // Get client info for audit logging (Requirement 5.4)
+  const clientInfo = getClientInfo(req);
+
+  const result = await otpService.resendOtp(phone, clientInfo);
+
+  return ok(res, result, result.message);
+});
+
 module.exports = {
   googleLogin,
   guestLogin,
@@ -177,4 +250,7 @@ module.exports = {
   linkGoogle,
   verifyToken,
   updateProfile,
+  sendPhoneOtp,
+  verifyPhoneOtp,
+  resendPhoneOtp,
 };

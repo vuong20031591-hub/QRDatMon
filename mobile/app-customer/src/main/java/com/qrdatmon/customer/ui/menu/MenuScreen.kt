@@ -28,7 +28,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.qrdatmon.customer.ui.components.AppBottomNavigation
+import com.qrdatmon.customer.ui.theme.Dimensions
 
 data class MenuItem(
     val id: String,
@@ -123,7 +125,12 @@ fun MenuScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 10.dp)
+                .padding(
+                    start = Dimensions.screenHorizontalPadding,
+                    end = Dimensions.screenHorizontalPadding,
+                    top = Dimensions.statusBarPadding,
+                    bottom = Dimensions.screenVerticalPadding
+                )
         ) {
             // Header
             MenuHeader(
@@ -137,7 +144,7 @@ fun MenuScreen(
             // Content
             LazyColumn(
                 modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(bottom = 140.dp),
+                contentPadding = PaddingValues(bottom = Dimensions.contentBottomPaddingSimple),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 // Restaurant Banner
@@ -226,13 +233,6 @@ fun MenuScreen(
                     }
                 }
             }
-
-            // Bottom Order Bar
-            BottomOrderBar(
-                itemCount = cartItemCount,
-                totalAmount = totalAmount,
-                onOrderClick = onOrderClick
-            )
         }
 
         // Bottom Navigation
@@ -686,12 +686,15 @@ private fun MenuItemCard(
                     .fillMaxWidth()
                     .height(140.dp)
                     .background(Color(0xFFF5F5F5), RoundedCornerShape(14.dp))
+                    .clip(RoundedCornerShape(14.dp))
             ) {
-                Image(
-                    painter = painterResource(id = android.R.drawable.ic_menu_gallery),
+                AsyncImage(
+                    model = item.imageUrl,
                     contentDescription = item.name,
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
+                    error = painterResource(id = android.R.drawable.ic_menu_gallery),
+                    placeholder = painterResource(id = android.R.drawable.ic_menu_gallery)
                 )
 
                 // Badges

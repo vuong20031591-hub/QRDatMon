@@ -27,7 +27,9 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.qrdatmon.customer.ui.components.AppBottomNavigation
+import com.qrdatmon.customer.ui.theme.Dimensions
 
 data class CartItem(
     val id: String,
@@ -48,22 +50,7 @@ fun CartScreen(
     onNavigateToMenu: () -> Unit,
     onNavigateToOrderStatus: () -> Unit
 ) {
-    var cartItems by remember {
-        mutableStateOf(
-            listOf(
-                CartItem(
-                    id = "1",
-                    name = "Lẩu Thái hải sản (size Vừa)",
-                    description = "+ Thêm tôm tươi • Cay vừa • 2-3 người\nGhi chú: Mang ra cùng các món khác, ít hành trên mặt.",
-                    price = 389000,
-                    toppingPrice = 40000,
-                    quantity = 1,
-                    imageUrl = "",
-                    note = "Sửa ghi chú"
-                )
-            )
-        )
-    }
+    var cartItems by remember { mutableStateOf(emptyList<CartItem>()) }
 
     val subtotal = cartItems.sumOf { (it.price + it.toppingPrice) * it.quantity }
     val shippingFee = 0
@@ -96,7 +83,12 @@ fun CartScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 10.dp)
+                .padding(
+                    start = Dimensions.screenHorizontalPadding,
+                    end = Dimensions.screenHorizontalPadding,
+                    top = Dimensions.statusBarPadding,
+                    bottom = Dimensions.screenVerticalPadding
+                )
         ) {
             // Header
             CartHeader(
@@ -110,6 +102,7 @@ fun CartScreen(
             // Content
             LazyColumn(
                 modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(bottom = Dimensions.contentBottomPaddingSimple),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 // Discount Banner
@@ -130,16 +123,50 @@ fun CartScreen(
                             color = Color(0xFF222222)
                         )
 
-                        cartItems.forEach { item ->
-                            CartItemCard(
-                                item = item,
-                                onQuantityChange = { newQuantity ->
-                                    // TODO: Update quantity
-                                },
-                                onRemove = {
-                                    // TODO: Remove item
+                        if (cartItems.isEmpty()) {
+                            // Empty state
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 40.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = "🛒",
+                                        fontSize = 48.sp
+                                    )
+                                    Text(
+                                        text = "Giỏ hàng trống",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color(0xFF666666)
+                                    )
+                                    Text(
+                                        text = "Hãy thêm món ăn vào giỏ hàng",
+                                        fontSize = 14.sp,
+                                        color = Color(0xFF999999)
+                                    )
                                 }
-                            )
+                            }
+                        } else {
+                            cartItems.forEach { item ->
+                                CartItemCard(
+                                    item = item,
+                                    onQuantityChange = { newQuantity ->
+                                        cartItems = cartItems.map { 
+                                            if (it.id == item.id) it.copy(quantity = newQuantity) 
+                                            else it 
+                                        }
+                                    },
+                                    onRemove = {
+                                        cartItems = cartItems.filter { it.id != item.id }
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -331,63 +358,18 @@ private fun CartItemCard(
             // Image
             Box(
                 modifier = Modifier
-                    .width(88.dp)
-                    .height(151.dp)
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                Color(0xF2FF6F3C),
-                                Color(0xE6FFBC78)
-                            )
-                        ),
-                        shape = RoundedCornerShape(14.dp)
-                    )
-                    .padding(3.dp)
+                    .size(80.dp)
+                    .background(Color(0xFFF5F5F5), RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(12.dp))
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(80.dp)
-                        .background(Color(0xFFF5F5F5), RoundedCornerShape(11.dp))
-                ) {
-                    Image(
-                        painter = painterResource(id = android.R.drawable.ic_menu_gallery),
-                        contentDescription = item.name,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-
-                    // Gradient overlay
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.Transparent,
-                                        Color(0x59000000)
-                                    )
-                                )
-                            )
-                    )
-
-                    // "Lẩu nóng" badge
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(6.dp)
-                            .background(Color(0xB3000000), RoundedCornerShape(999.dp))
-                            .padding(horizontal = 8.dp, vertical = 3.dp)
-                    ) {
-                        Text(
-                            text = "Lẩu nóng",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color.White,
-                            letterSpacing = 0.1.sp
-                        )
-                    }
-                }
+                coil.compose.AsyncImage(
+                    model = item.imageUrl,
+                    contentDescription = item.name,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    error = painterResource(id = android.R.drawable.ic_menu_gallery),
+                    placeholder = painterResource(id = android.R.drawable.ic_menu_gallery)
+                )
             }
 
             // Info

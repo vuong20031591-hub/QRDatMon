@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.text.NumberFormat
 import java.util.*
+import com.qrdatmon.staff.ui.theme.Dimensions
 
 data class OrderItem(
     val id: String,
@@ -76,6 +77,7 @@ fun OrderListScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF5F5F5))
+            .padding(top = Dimensions.statusBarPadding)
     ) {
         // Header
         Surface(

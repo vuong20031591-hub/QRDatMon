@@ -11,12 +11,23 @@ android {
 
 dependencies {
     implementation(project(":core:data"))
+    implementation(project(":core:common"))
+    implementation(project(":core:network"))
     
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     
     implementation(libs.hilt.android)
     ksp(libs.hilt.android.compiler)
+    
+    // Firebase Auth
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    
+    // Google Identity / Credential Manager
+    implementation(libs.credentials)
+    implementation(libs.credentials.play.services)
+    implementation(libs.googleid)
     
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)

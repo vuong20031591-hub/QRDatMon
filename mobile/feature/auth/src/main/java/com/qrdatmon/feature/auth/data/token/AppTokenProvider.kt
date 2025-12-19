@@ -1,4 +1,4 @@
-package com.qrdatmon.customer.auth
+package com.qrdatmon.feature.auth.data.token
 
 import com.google.firebase.auth.FirebaseAuth
 import com.qrdatmon.core.common.auth.AuthManager
@@ -8,11 +8,11 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Customer TokenProvider that supports both Firebase Auth and AuthManager
+ * Shared TokenProvider for both Customer and Staff apps
  * Priority: AuthManager token > Firebase token
  */
 @Singleton
-class CustomerTokenProvider @Inject constructor(
+class AppTokenProvider @Inject constructor(
     private val firebaseAuth: FirebaseAuth,
     private val authManager: AuthManager
 ) : TokenProvider {

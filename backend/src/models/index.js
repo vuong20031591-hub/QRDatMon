@@ -1,6 +1,7 @@
 const User = require('./User');
 const Staff = require('./Staff');
 const PushToken = require('./PushToken');
+const Otp = require('./Otp');
 const Shift = require('./Shift');
 const ActivityLog = require('./ActivityLog');
 const Area = require('./Area');
@@ -29,6 +30,7 @@ module.exports = {
   User,
   Staff,
   PushToken,
+  Otp,
   Shift,
   ActivityLog,
   Area,

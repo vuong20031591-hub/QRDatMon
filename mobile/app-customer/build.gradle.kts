@@ -100,6 +100,14 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
     
+    // Google Identity / Credential Manager
+    implementation(libs.credentials)
+    implementation(libs.credentials.play.services)
+    implementation(libs.googleid)
+    
+    // Image Loading
+    implementation(libs.coil.compose)
+    
     // Logging
     implementation(libs.timber)
     

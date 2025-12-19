@@ -162,6 +162,50 @@ const authSchemas = {
     refreshToken: Joi.string().required().messages({
       'any.required': 'Refresh token is required'
     })
+  }),
+
+  // Send OTP - Requirements: 1.4
+  sendOtp: Joi.object({
+    phone: Joi.string()
+      .pattern(/^(0|\+84)[3-9][0-9]{8}$/)
+      .required()
+      .messages({
+        'any.required': 'Số điện thoại là bắt buộc',
+        'string.empty': 'Số điện thoại không được để trống',
+        'string.pattern.base': 'Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại Việt Nam (10 số, bắt đầu bằng 0)'
+      })
+  }),
+
+  // Verify OTP - Requirements: 2.1
+  verifyOtp: Joi.object({
+    phone: Joi.string()
+      .pattern(/^(0|\+84)[3-9][0-9]{8}$/)
+      .required()
+      .messages({
+        'any.required': 'Số điện thoại là bắt buộc',
+        'string.empty': 'Số điện thoại không được để trống',
+        'string.pattern.base': 'Số điện thoại không hợp lệ'
+      }),
+    otp: Joi.string()
+      .pattern(/^[0-9]{6}$/)
+      .required()
+      .messages({
+        'any.required': 'Mã OTP là bắt buộc',
+        'string.empty': 'Mã OTP không được để trống',
+        'string.pattern.base': 'Mã OTP phải là 6 chữ số'
+      })
+  }),
+
+  // Resend OTP - Requirements: 3.1, 3.2, 3.3
+  resendOtp: Joi.object({
+    phone: Joi.string()
+      .pattern(/^(0|\+84)[3-9][0-9]{8}$/)
+      .required()
+      .messages({
+        'any.required': 'Số điện thoại là bắt buộc',
+        'string.empty': 'Số điện thoại không được để trống',
+        'string.pattern.base': 'Số điện thoại không hợp lệ'
+      })
   })
 };
 

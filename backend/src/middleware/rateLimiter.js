@@ -98,6 +98,21 @@ const uploadLimiter = rateLimit({
 });
 
 /**
+ * OTP rate limiter
+ * 10 requests per 15 minutes per IP
+ * Requirements: 1.7, 5.3
+ */
+const otpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 requests per window per IP
+  message: 'Quá nhiều yêu cầu OTP. Vui lòng thử lại sau 15 phút',
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: skipInTest,
+  handler: createRateLimitHandler('Quá nhiều yêu cầu OTP. Vui lòng thử lại sau 15 phút'),
+});
+
+/**
  * Create custom rate limiter with specified options
  * @param {Object} options - Rate limiter options
  * @param {number} options.windowMs - Time window in milliseconds
@@ -148,6 +163,7 @@ module.exports = {
   loginLimiter,
   orderLimiter,
   uploadLimiter,
+  otpLimiter,
   createCustomLimiter,
   rateLimiterByType,
 };

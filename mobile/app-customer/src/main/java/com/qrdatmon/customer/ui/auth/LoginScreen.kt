@@ -24,83 +24,134 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 
+/**
+ * LoginScreen với ViewModel integration
+ * Requirements: 4.1, 4.2, 4.5
+ */
 @Composable
 fun LoginScreen(
+    viewModel: LoginViewModel = hiltViewModel(),
     onBackClick: () -> Unit,
-    onSendOtpClick: (String) -> Unit,
-    onGoogleSignInClick: () -> Unit
+    onNavigateToOtp: () -> Unit,
+    onLoginSuccess: () -> Unit
 ) {
+    val uiState by viewModel.uiState.collectAsState()
     var phoneNumber by remember { mutableStateOf("") }
     val isPhoneValid = phoneNumber.length >= 9
+    val context = androidx.compose.ui.platform.LocalContext.current
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-            .background(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        Color(0x1FFF6F3C),
-                        Color.Transparent
-                    ),
-                    center = androidx.compose.ui.geometry.Offset(0.5f, 0f),
-                    radius = 1000f
-                )
+    // Navigate to OTP screen when OTP is sent successfully
+    LaunchedEffect(uiState.otpSent) {
+        if (uiState.otpSent) {
+            onNavigateToOtp()
+        }
+    }
+
+    // Navigate to main screen when login is successful (Google Sign-In)
+    LaunchedEffect(uiState.isLoginSuccess) {
+        if (uiState.isLoginSuccess) {
+            onLoginSuccess()
+        }
+    }
+
+    // Show error snackbar
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(uiState.errorMessage) {
+        uiState.errorMessage?.let { error ->
+            snackbarHostState.showSnackbar(
+                message = error,
+                duration = SnackbarDuration.Short
             )
-            .padding(horizontal = 24.dp, vertical = 24.dp)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.SpaceBetween
+            viewModel.clearError()
+        }
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .background(Color.White)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            Color(0x1FFF6F3C),
+                            Color.Transparent
+                        ),
+                        center = androidx.compose.ui.geometry.Offset(0.5f, 0f),
+                        radius = 1000f
+                    )
+                )
+                .padding(horizontal = 24.dp, vertical = 24.dp)
         ) {
             Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(0.dp)
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // Header with Back Button
-                LoginHeader(onBackClick = onBackClick)
-
-                Spacer(modifier = Modifier.height(40.dp))
-
-                // App Logo and Name
-                AppBranding()
-
-                Spacer(modifier = Modifier.height(48.dp))
-
-                // Title and Description
-                LoginTitle()
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                // Phone Input Section
-                PhoneInputSection(
-                    phoneNumber = phoneNumber,
-                    onPhoneNumberChange = { phoneNumber = it }
-                )
-
-                Spacer(modifier = Modifier.height(40.dp))
-
-                // Send OTP Button
-                Button(
-                    onClick = { if (isPhoneValid) onSendOtpClick(phoneNumber) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(28.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isPhoneValid) Color(0xFFFF6F3C) else Color(0x66FF6F3C),
-                        disabledContainerColor = Color(0x66FF6F3C)
-                    ),
-                    enabled = isPhoneValid
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
-                    Text(
-                        text = "Gửi mã OTP",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White
+                    // Header with Back Button
+                    LoginHeader(onBackClick = onBackClick)
+
+                    Spacer(modifier = Modifier.height(40.dp))
+
+                    // App Logo and Name
+                    AppBranding()
+
+                    Spacer(modifier = Modifier.height(48.dp))
+
+                    // Title and Description
+                    LoginTitle()
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    // Phone Input Section
+                    PhoneInputSection(
+                        phoneNumber = phoneNumber,
+                        onPhoneNumberChange = { phoneNumber = it },
+                        isEnabled = !uiState.isLoading
                     )
-                }
+
+                    Spacer(modifier = Modifier.height(40.dp))
+
+                    // Send OTP Button with loading state
+                    Button(
+                        onClick = { 
+                            if (isPhoneValid && !uiState.isLoading) {
+                                viewModel.sendOtp(phoneNumber)
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(28.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isPhoneValid) Color(0xFFFF6F3C) else Color(0x66FF6F3C),
+                            disabledContainerColor = Color(0x66FF6F3C)
+                        ),
+                        enabled = isPhoneValid && !uiState.isLoading
+                    ) {
+                        if (uiState.isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text(
+                                text = "Gửi mã OTP",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
+                            )
+                        }
+                    }
 
                 Spacer(modifier = Modifier.height(20.dp))
 
@@ -132,7 +183,7 @@ fun LoginScreen(
 
                 // Google Sign In Button
                 OutlinedButton(
-                    onClick = onGoogleSignInClick,
+                    onClick = { viewModel.signInWithGoogle(context) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
@@ -140,39 +191,49 @@ fun LoginScreen(
                     border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFFF6F3C)),
                     colors = ButtonDefaults.outlinedButtonColors(
                         containerColor = Color.White
-                    )
+                    ),
+                    enabled = !uiState.isGoogleLoading && !uiState.isLoading
                 ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Image(
-                            painter = painterResource(id = com.qrdatmon.customer.R.drawable.logo_google),
-                            contentDescription = "Google",
-                            modifier = Modifier.size(24.dp)
+                    if (uiState.isGoogleLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color(0xFFFF6F3C),
+                            strokeWidth = 2.dp
                         )
-                        Text(
-                            text = "Đăng nhập bằng Google",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFFFF6F3C)
-                        )
+                    } else {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Image(
+                                painter = painterResource(id = com.qrdatmon.customer.R.drawable.logo_google),
+                                contentDescription = "Google",
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = "Đăng nhập bằng Google",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFFFF6F3C)
+                            )
+                        }
                     }
                 }
             }
 
-            // Terms and Privacy
-            Text(
-                text = "Bằng cách tiếp tục, bạn đồng ý với Điều khoản sử dụng và Chính sách bảo mật của nhà hàng.",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Normal,
-                color = Color(0xFF666666),
-                textAlign = TextAlign.Center,
-                lineHeight = 18.sp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp)
-            )
+                // Terms and Privacy
+                Text(
+                    text = "Bằng cách tiếp tục, bạn đồng ý với Điều khoản sử dụng và Chính sách bảo mật của nhà hàng.",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = Color(0xFF666666),
+                    textAlign = TextAlign.Center,
+                    lineHeight = 18.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp)
+                )
+            }
         }
     }
 }
@@ -290,7 +351,8 @@ private fun LoginTitle() {
 @Composable
 private fun PhoneInputSection(
     phoneNumber: String,
-    onPhoneNumberChange: (String) -> Unit
+    onPhoneNumberChange: (String) -> Unit,
+    isEnabled: Boolean = true
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -345,15 +407,16 @@ private fun PhoneInputSection(
             // Phone Number Input
             BasicTextField(
                 value = phoneNumber,
-                onValueChange = { if (it.length <= 10) onPhoneNumberChange(it) },
+                onValueChange = { if (it.length <= 10 && isEnabled) onPhoneNumberChange(it) },
                 modifier = Modifier.weight(1f),
                 textStyle = androidx.compose.ui.text.TextStyle(
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF222222)
+                    color = if (isEnabled) Color(0xFF222222) else Color(0xFF999999)
                 ),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 singleLine = true,
+                enabled = isEnabled,
                 decorationBox = { innerTextField ->
                     if (phoneNumber.isEmpty()) {
                         Text(

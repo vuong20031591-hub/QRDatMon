@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -19,12 +20,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun OnboardingScreen(
     onLoginClick: () -> Unit,
     onGoogleSignInClick: () -> Unit,
-    onSkipClick: () -> Unit
+    onSkipClick: () -> Unit,
+    isGoogleLoading: Boolean = false
 ) {
+    val pagerState = androidx.compose.foundation.pager.rememberPagerState(pageCount = { 3 })
+    
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -53,8 +58,13 @@ fun OnboardingScreen(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Feature Preview Card
-            FeaturePreviewCard()
+            // Feature Preview Card with Pager
+            androidx.compose.foundation.pager.HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxWidth()
+            ) { page ->
+                FeaturePreviewCard(page = page, currentPage = pagerState.currentPage)
+            }
 
             Spacer(modifier = Modifier.weight(1f))
 
@@ -62,7 +72,8 @@ fun OnboardingScreen(
             BottomActions(
                 onLoginClick = onLoginClick,
                 onGoogleSignInClick = onGoogleSignInClick,
-                onSkipClick = onSkipClick
+                onSkipClick = onSkipClick,
+                isGoogleLoading = isGoogleLoading
             )
         }
     }
@@ -136,7 +147,7 @@ private fun AppHeader() {
 }
 
 @Composable
-private fun FeaturePreviewCard() {
+private fun FeaturePreviewCard(page: Int, currentPage: Int) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -183,7 +194,7 @@ private fun FeaturePreviewCard() {
             }
 
             // Welcome Text Section
-            WelcomeTextSection()
+            WelcomeTextSection(page = page, currentPage = currentPage)
         }
     }
 }
@@ -374,13 +385,31 @@ private fun FeatureBadge(text: String) {
 
 
 @Composable
-private fun WelcomeTextSection() {
+private fun WelcomeTextSection(page: Int, currentPage: Int) {
+    val titles = listOf(
+        "Chào mừng đến với Nhà hàng Demo",
+        "Đặt món nhanh chóng, tiện lợi",
+        "Thanh toán an toàn, dễ dàng"
+    )
+    
+    val descriptions = listOf(
+        "Quét QR trên bàn, chọn món yêu thích và gọi ngay khi chỉ đối ấp đơn.",
+        "Xem menu đầy đủ hình ảnh, chọn món và gọi order chỉ với vài chạm.",
+        "Thanh toán VietQR nhanh chóng, theo dõi đơn hàng realtime."
+    )
+    
+    val featureTags = listOf(
+        listOf("Không cần gọi phục vụ", "Xem hình món siêu hấp dẫn", "Thanh toán VietQR tiện lợi"),
+        listOf("Menu đầy đủ hình ảnh", "Gọi món chỉ vài chạm", "Theo dõi trạng thái đơn"),
+        listOf("Thanh toán VietQR", "An toàn & bảo mật", "Nhận ưu đãi ngay")
+    )
+    
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
-            text = "Chào mừng đến với Nhà hàng Demo",
+            text = titles[page],
             fontSize = 20.sp,
             fontWeight = FontWeight.SemiBold,
             color = Color(0xFF222222),
@@ -388,7 +417,7 @@ private fun WelcomeTextSection() {
         )
 
         Text(
-            text = "Quét QR trên bàn, chọn món yêu thích và gọi ngay khi chỉ đối ấp đơn.",
+            text = descriptions[page],
             fontSize = 14.sp,
             fontWeight = FontWeight.Normal,
             color = Color(0xFF666666),
@@ -405,15 +434,15 @@ private fun WelcomeTextSection() {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                FeatureTag("Không cần gọi phục vụ")
-                FeatureTag("Xem hình món siêu hấp dẫn")
+                FeatureTag(featureTags[page][0])
+                FeatureTag(featureTags[page][1])
             }
-            FeatureTag("Thanh toán VietQR tiện lợi")
+            FeatureTag(featureTags[page][2])
         }
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        PageIndicator()
+        PageIndicator(currentPage = currentPage)
     }
 }
 
@@ -436,23 +465,17 @@ private fun FeatureTag(text: String) {
 }
 
 @Composable
-private fun PageIndicator() {
+private fun PageIndicator(currentPage: Int) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .width(16.dp)
-                .height(6.dp)
-                .clip(RoundedCornerShape(999.dp))
-                .background(Color(0xFFFF6F3C))
-        )
-        repeat(2) {
+        repeat(3) { index ->
             Box(
                 modifier = Modifier
-                    .size(6.dp)
-                    .clip(CircleShape)
-                    .background(Color(0x40FF6F3C))
+                    .width(if (index == currentPage) 16.dp else 6.dp)
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(if (index == currentPage) Color(0xFFFF6F3C) else Color(0x40FF6F3C))
             )
         }
     }
@@ -462,7 +485,8 @@ private fun PageIndicator() {
 private fun BottomActions(
     onLoginClick: () -> Unit,
     onGoogleSignInClick: () -> Unit,
-    onSkipClick: () -> Unit
+    onSkipClick: () -> Unit,
+    isGoogleLoading: Boolean = false
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -496,23 +520,32 @@ private fun BottomActions(
             border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFF6F3C)),
             colors = ButtonDefaults.outlinedButtonColors(
                 containerColor = Color.White
-            )
+            ),
+            enabled = !isGoogleLoading
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Image(
-                    painter = painterResource(id = com.qrdatmon.customer.R.drawable.logo_google),
-                    contentDescription = "Google",
-                    modifier = Modifier.size(20.dp)
+            if (isGoogleLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = Color(0xFFFF6F3C),
+                    strokeWidth = 2.dp
                 )
-                Text(
-                    text = "Tiếp tục với Google",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color(0xFFFF6F3C)
-                )
+            } else {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Image(
+                        painter = painterResource(id = com.qrdatmon.customer.R.drawable.logo_google),
+                        contentDescription = "Google",
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = "Tiếp tục với Google",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFFFF6F3C)
+                    )
+                }
             }
         }
 

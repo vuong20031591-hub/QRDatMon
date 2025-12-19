@@ -348,6 +348,62 @@ const loginWithPassword = async (email, password) => {
   };
 };
 
+/**
+ * Login with phone number (after OTP verification)
+ * Creates new user if not exists, or retrieves existing user
+ * Requirements: 2.2, 2.7, 2.8
+ * @param {string} phone - Phone number (normalized format +84xxxxxxxxx)
+ * @returns {Promise<Object>} User data with tokens
+ */
+const loginWithPhone = async (phone) => {
+  // Normalize phone to E.164 format
+  let normalizedPhone = phone;
+  if (phone.startsWith('0')) {
+    normalizedPhone = '+84' + phone.substring(1);
+  } else if (!phone.startsWith('+84')) {
+    normalizedPhone = '+84' + phone;
+  }
+
+  // Find or create user by phone
+  let user = await User.findOne({ phone: normalizedPhone });
+  let isNewUser = false;
+
+  if (!user) {
+    // Create new user with phone (Requirement 2.7)
+    isNewUser = true;
+    user = await User.create({
+      phone: normalizedPhone,
+      name: `User ${normalizedPhone.slice(-4)}`,
+      authProvider: AUTH_PROVIDER.PHONE,
+      isGuest: false,
+      isActive: true
+    });
+    console.log(`[Auth] New user created via phone: ${normalizedPhone.slice(0, 6)}***${normalizedPhone.slice(-3)}`);
+  } else {
+    // Check if user is active
+    if (!user.isActive) {
+      throw new AuthenticationError('Tài khoản đã bị vô hiệu hóa');
+    }
+
+    // Update lastLoginAt (Requirement 2.8)
+    user.lastLoginAt = new Date();
+    await user.save();
+    console.log(`[Auth] Existing user logged in via phone: ${normalizedPhone.slice(0, 6)}***${normalizedPhone.slice(-3)}`);
+  }
+
+  // Check if user is a staff member
+  const staff = await Staff.findOne({ user: user._id, isActive: true });
+
+  // Generate tokens (Requirement 2.3)
+  const tokens = generateTokenPair(user, staff);
+
+  return {
+    user: formatUserResponse(user, staff),
+    isNewUser,
+    ...tokens
+  };
+};
+
 module.exports = {
   verifyFirebaseToken,
   createGuestUser,
@@ -356,6 +412,7 @@ module.exports = {
   linkGuestToFirebase,
   logoutUser,
   loginWithPassword,
+  loginWithPhone,
   generateTokenPair,
   formatUserResponse,
   validateStaffAccess

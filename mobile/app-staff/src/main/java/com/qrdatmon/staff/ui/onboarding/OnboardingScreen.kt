@@ -1,8 +1,11 @@
 package com.qrdatmon.staff.ui.onboarding
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -20,10 +23,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.qrdatmon.staff.R
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun OnboardingScreen(
     onLoginClick: () -> Unit
 ) {
+    val pagerState = rememberPagerState(pageCount = { 3 })
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -52,8 +57,13 @@ fun OnboardingScreen(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Feature Preview Card
-            FeaturePreviewCard()
+            // Feature Preview Card with Pager
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxWidth()
+            ) { page ->
+                FeaturePreviewCard(page = page, currentPage = pagerState.currentPage)
+            }
 
             Spacer(modifier = Modifier.weight(1f))
 
@@ -131,7 +141,7 @@ private fun AppHeader() {
 }
 
 @Composable
-private fun FeaturePreviewCard() {
+private fun FeaturePreviewCard(page: Int, currentPage: Int) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -166,25 +176,37 @@ private fun FeaturePreviewCard() {
                 verticalAlignment = Alignment.Bottom
             ) {
                 // Large Feature Card
-                LargeFeatureCard()
+                LargeFeatureCard(page = page)
 
                 // Small Cards Column
                 Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    SmallFeatureCard()
-                    FeatureBadges()
+                    SmallFeatureCard(page = page)
+                    FeatureBadges(page = page)
                 }
             }
 
             // Welcome Text Section
-            WelcomeTextSection()
+            WelcomeTextSection(page = page, currentPage = currentPage)
         }
     }
 }
 
 @Composable
-private fun RowScope.LargeFeatureCard() {
+private fun RowScope.LargeFeatureCard(page: Int) {
+    val content = when (page) {
+        0 -> Triple("📋", "Quản lý đơn hàng", "Theo dõi đơn hàng real-time")
+        1 -> Triple("🪑", "Quản lý bàn ăn", "Kiểm soát trạng thái bàn")
+        else -> Triple("💳", "Xử lý thanh toán", "Thanh toán nhanh chóng")
+    }
+    
+    val description = when (page) {
+        0 -> "Xem trạng thái món ăn, xác nhận và phục vụ nhanh chóng."
+        1 -> "Theo dõi bàn trống, đang dùng, gộp và tách bàn dễ dàng."
+        else -> "Xử lý thanh toán tiền mặt, chuyển khoản và VietQR."
+    }
+    
     Card(
         modifier = Modifier
             .weight(1.7f)
@@ -206,7 +228,7 @@ private fun RowScope.LargeFeatureCard() {
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "📋",
+                    text = content.first,
                     fontSize = 48.sp
                 )
             }
@@ -218,7 +240,7 @@ private fun RowScope.LargeFeatureCard() {
                     .padding(horizontal = 8.dp, vertical = 3.dp)
             ) {
                 Text(
-                    text = "Quản lý đơn hàng",
+                    text = content.second,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
                     color = Color(0xFF4CAF50)
@@ -226,7 +248,7 @@ private fun RowScope.LargeFeatureCard() {
             }
 
             Text(
-                text = "Theo dõi đơn hàng real-time",
+                text = content.third,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color(0xFF222222),
@@ -234,7 +256,7 @@ private fun RowScope.LargeFeatureCard() {
             )
 
             Text(
-                text = "Xem trạng thái món ăn, xác nhận và phục vụ nhanh chóng.",
+                text = description,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Normal,
                 color = Color(0xFF666666),
@@ -245,7 +267,19 @@ private fun RowScope.LargeFeatureCard() {
 }
 
 @Composable
-private fun SmallFeatureCard() {
+private fun SmallFeatureCard(page: Int) {
+    val content = when (page) {
+        0 -> Triple("🔔", "Thông báo", "Real-time")
+        1 -> Triple("📊", "Thống kê", "Doanh thu")
+        else -> Triple("⚙️", "Cài đặt", "Tùy chỉnh")
+    }
+    
+    val tags = when (page) {
+        0 -> listOf("Đơn hàng mới", "Cập nhật món")
+        1 -> listOf("Theo ngày", "Theo tháng")
+        else -> listOf("Tài khoản", "Thông báo")
+    }
+    
     Card(
         modifier = Modifier
             .width(120.dp)
@@ -267,20 +301,20 @@ private fun SmallFeatureCard() {
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "🪑",
+                    text = content.first,
                     fontSize = 32.sp
                 )
             }
 
             Text(
-                text = "Quản lý bàn",
+                text = content.second,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
                 color = Color(0xFF222222)
             )
 
             Text(
-                text = "Trạng thái bàn",
+                text = content.third,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color(0xFF4CAF50)
@@ -291,29 +325,19 @@ private fun SmallFeatureCard() {
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .background(Color(0xFFE8F5E9), RoundedCornerShape(999.dp))
-                        .padding(horizontal = 6.dp, vertical = 3.dp)
-                ) {
-                    Text(
-                        text = "Trống/Đang dùng",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF4CAF50)
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .background(Color(0xFFF1F8F4), RoundedCornerShape(999.dp))
-                        .padding(horizontal = 6.dp, vertical = 3.dp)
-                ) {
-                    Text(
-                        text = "Gộp/Tách bàn",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF4CAF50)
-                    )
+                tags.forEach { tag ->
+                    Box(
+                        modifier = Modifier
+                            .background(Color(0xFFE8F5E9), RoundedCornerShape(999.dp))
+                            .padding(horizontal = 6.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = tag,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF4CAF50)
+                        )
+                    }
                 }
             }
         }
@@ -321,12 +345,19 @@ private fun SmallFeatureCard() {
 }
 
 @Composable
-private fun FeatureBadges() {
+private fun FeatureBadges(page: Int) {
+    val badges = when (page) {
+        0 -> listOf("• Xác nhận đơn hàng nhanh", "• Thông báo real-time")
+        1 -> listOf("• Gộp/Tách bàn", "• Trạng thái bàn")
+        else -> listOf("• Tiền mặt/Chuyển khoản", "• VietQR")
+    }
+    
     Column(
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        FeatureBadge("• Xác nhận đơn hàng nhanh")
-        FeatureBadge("• Thông báo real-time")
+        badges.forEach { badge ->
+            FeatureBadge(badge)
+        }
     }
 }
 
@@ -364,13 +395,31 @@ private fun FeatureBadge(text: String) {
 }
 
 @Composable
-private fun WelcomeTextSection() {
+private fun WelcomeTextSection(page: Int, currentPage: Int) {
+    val titles = listOf(
+        "Chào mừng đến với QRDatMon Staff",
+        "Quản lý đơn hàng hiệu quả",
+        "Xử lý thanh toán nhanh chóng"
+    )
+    
+    val descriptions = listOf(
+        "Ứng dụng quản lý đơn hàng, bàn ăn và thanh toán dành cho nhân viên nhà hàng.",
+        "Theo dõi đơn hàng real-time, quản lý bàn ăn và phục vụ khách hàng chuyên nghiệp.",
+        "Hỗ trợ thanh toán tiền mặt, chuyển khoản và VietQR. An toàn, nhanh chóng."
+    )
+    
+    val tags = listOf(
+        listOf("Quản lý đơn hàng", "Theo dõi bàn ăn", "Xử lý thanh toán nhanh chóng"),
+        listOf("Thông báo real-time", "Xác nhận đơn nhanh", "Gộp/Tách bàn"),
+        listOf("Tiền mặt", "Chuyển khoản", "VietQR")
+    )
+    
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
-            text = "Chào mừng đến với QRDatMon Staff",
+            text = titles[page],
             fontSize = 20.sp,
             fontWeight = FontWeight.SemiBold,
             color = Color(0xFF222222),
@@ -378,7 +427,7 @@ private fun WelcomeTextSection() {
         )
 
         Text(
-            text = "Ứng dụng quản lý đơn hàng, bàn ăn và thanh toán dành cho nhân viên nhà hàng.",
+            text = descriptions[page],
             fontSize = 14.sp,
             fontWeight = FontWeight.Normal,
             color = Color(0xFF666666),
@@ -391,19 +440,30 @@ private fun WelcomeTextSection() {
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                FeatureTag("Quản lý đơn hàng")
-                FeatureTag("Theo dõi bàn ăn")
+            if (page == 0) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    FeatureTag(tags[page][0])
+                    FeatureTag(tags[page][1])
+                }
+                FeatureTag(tags[page][2])
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    tags[page].forEach { tag ->
+                        FeatureTag(tag)
+                    }
+                }
             }
-            FeatureTag("Xử lý thanh toán nhanh chóng")
         }
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        PageIndicator()
+        PageIndicator(currentPage = currentPage)
     }
 }
 
@@ -426,23 +486,20 @@ private fun FeatureTag(text: String) {
 }
 
 @Composable
-private fun PageIndicator() {
+private fun PageIndicator(currentPage: Int) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .width(16.dp)
-                .height(6.dp)
-                .clip(RoundedCornerShape(999.dp))
-                .background(Color(0xFF4CAF50))
-        )
-        repeat(2) {
+        repeat(3) { index ->
             Box(
                 modifier = Modifier
-                    .size(6.dp)
-                    .clip(CircleShape)
-                    .background(Color(0x404CAF50))
+                    .width(if (index == currentPage) 16.dp else 6.dp)
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(
+                        if (index == currentPage) Color(0xFF4CAF50)
+                        else Color(0x404CAF50)
+                    )
             )
         }
     }

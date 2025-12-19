@@ -22,6 +22,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.qrdatmon.customer.ui.components.AppBottomNavigation
+import com.qrdatmon.customer.ui.theme.Dimensions
 
 @Composable
 fun PaymentScreen(
@@ -61,7 +62,12 @@ fun PaymentScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 10.dp)
+                .padding(
+                    start = Dimensions.screenHorizontalPadding,
+                    end = Dimensions.screenHorizontalPadding,
+                    top = Dimensions.statusBarPadding,
+                    bottom = Dimensions.screenVerticalPadding
+                )
         ) {
             // Header
             PaymentHeader(
@@ -75,6 +81,7 @@ fun PaymentScreen(
             // Content
             LazyColumn(
                 modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(bottom = Dimensions.contentBottomPaddingSimple),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // Order Summary Card

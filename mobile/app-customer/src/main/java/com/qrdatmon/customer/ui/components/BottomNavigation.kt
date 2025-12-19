@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.qrdatmon.customer.ui.theme.Dimensions
 
 @Composable
 fun AppBottomNavigation(
@@ -28,8 +29,11 @@ fun AppBottomNavigation(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp)
-            .height(58.dp)
+            .padding(
+                horizontal = 20.dp,
+                vertical = Dimensions.bottomNavPadding
+            )
+            .height(Dimensions.bottomNavInternalHeight)
             .background(Color(0xFFF5F5F5), RoundedCornerShape(999.dp))
             .padding(horizontal = 4.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,

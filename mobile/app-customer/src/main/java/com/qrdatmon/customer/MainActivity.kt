@@ -7,10 +7,16 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.qrdatmon.customer.ui.auth.GoogleSignInViewModel
 import com.qrdatmon.customer.ui.auth.LoginScreen
 import com.qrdatmon.customer.ui.auth.OtpVerificationScreen
 import com.qrdatmon.customer.ui.cart.CartScreen
@@ -34,7 +40,6 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContent {
             QRDatMonTheme {
                 QRDatMonCustomerApp()
@@ -49,41 +54,60 @@ fun QRDatMonCustomerApp() {
     var phoneNumber by remember { mutableStateOf("") }
     var tableCode by remember { mutableStateOf("") }
     var selectedMenuItem by remember { mutableStateOf("") }
+    
+    // Google Sign-In ViewModel cho Onboarding screen
+    val googleSignInViewModel: GoogleSignInViewModel = hiltViewModel()
+    val googleSignInState by googleSignInViewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    when (currentScreen) {
-        "splash" -> {
-            SimpleSplashScreen(
-                onNavigateToHome = { currentScreen = "onboarding" }
-            )
+    // Handle Google Sign-In success từ Onboarding
+    LaunchedEffect(googleSignInState.isSuccess) {
+        if (googleSignInState.isSuccess) {
+            googleSignInViewModel.resetState()
+            currentScreen = "qr_scan"
         }
-        "onboarding" -> {
-            OnboardingScreen(
-                onLoginClick = { currentScreen = "login" },
-                onGoogleSignInClick = { currentScreen = "google_signin" },
-                onSkipClick = { currentScreen = "qr_scan" }
+    }
+
+    // Show error snackbar
+    LaunchedEffect(googleSignInState.errorMessage) {
+        googleSignInState.errorMessage?.let { error ->
+            snackbarHostState.showSnackbar(
+                message = error,
+                duration = SnackbarDuration.Short
             )
+            googleSignInViewModel.clearError()
         }
-        "login" -> {
-            LoginScreen(
-                onBackClick = { currentScreen = "onboarding" },
-                onSendOtpClick = { phone ->
-                    phoneNumber = phone
-                    currentScreen = "otp_verification"
-                },
-                onGoogleSignInClick = { currentScreen = "google_signin" }
-            )
-        }
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { paddingValues ->
+        when (currentScreen) {
+            "splash" -> {
+                SimpleSplashScreen(
+                    onNavigateToHome = { currentScreen = "onboarding" }
+                )
+            }
+            "onboarding" -> {
+                OnboardingScreen(
+                    onLoginClick = { currentScreen = "login" },
+                    onGoogleSignInClick = { googleSignInViewModel.signInWithGoogle(context) },
+                    onSkipClick = { currentScreen = "qr_scan" },
+                    isGoogleLoading = googleSignInState.isLoading
+                )
+            }
+            "login" -> {
+                LoginScreen(
+                    onBackClick = { currentScreen = "onboarding" },
+                    onNavigateToOtp = { currentScreen = "otp_verification" },
+                    onLoginSuccess = { currentScreen = "qr_scan" }
+                )
+            }
         "otp_verification" -> {
             OtpVerificationScreen(
-                phoneNumber = phoneNumber,
                 onBackClick = { currentScreen = "login" },
-                onVerifyClick = { otp ->
-                    // TODO: Verify OTP and navigate to QR scan
-                    currentScreen = "qr_scan"
-                },
-                onResendOtp = {
-                    // TODO: Resend OTP logic
-                }
+                onNavigateToMain = { currentScreen = "qr_scan" }
             )
         }
         "qr_scan" -> {
@@ -227,20 +251,17 @@ fun QRDatMonCustomerApp() {
             )
         }
         "home" -> {
-            Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                Greeting(
-                    name = "QRDatMon Customer - Home",
-                    modifier = Modifier.padding(innerPadding)
-                )
-            }
+            Greeting(
+                name = "QRDatMon Customer - Home",
+                modifier = Modifier.padding(paddingValues)
+            )
         }
         else -> {
-            Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                Greeting(
-                    name = "QRDatMon Customer",
-                    modifier = Modifier.padding(innerPadding)
-                )
-            }
+            Greeting(
+                name = "QRDatMon Customer",
+                modifier = Modifier.padding(paddingValues)
+            )
+        }
         }
     }
 }

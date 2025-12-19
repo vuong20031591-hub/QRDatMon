@@ -1,7 +1,7 @@
 /**
  * Authentication Routes
  * Defines routes for authentication endpoints
- * Requirements: 1.1, 1.4, 1.5
+ * Requirements: 1.1, 1.4, 1.5, 2.1, 2.2, 2.3, 3.1, 3.2, 3.3
  */
 
 const express = require('express');
@@ -9,7 +9,7 @@ const router = express.Router();
 
 const authController = require('../controllers/auth.controller');
 const { authenticate, verifyRefreshToken, restrictGuest } = require('../middleware/auth');
-const { authLimiter, loginLimiter } = require('../middleware/rateLimiter');
+const { authLimiter, loginLimiter, otpLimiter } = require('../middleware/rateLimiter');
 const { validate, authSchemas, Joi } = require('../middleware/validator');
 
 /**
@@ -108,6 +108,49 @@ router.put(
   authenticate,
   restrictGuest,
   authController.updateProfile
+);
+
+// ============================================
+// Phone OTP Authentication Routes
+// ============================================
+
+/**
+ * @route   POST /api/auth/phone/send-otp
+ * @desc    Send OTP to phone number
+ * @access  Public
+ * Requirements: 1.1, 1.3, 1.4
+ */
+router.post(
+  '/phone/send-otp',
+  otpLimiter,
+  validate(authSchemas.sendOtp),
+  authController.sendPhoneOtp
+);
+
+/**
+ * @route   POST /api/auth/phone/verify-otp
+ * @desc    Verify OTP and login/create user
+ * @access  Public
+ * Requirements: 2.1, 2.2, 2.3, 2.7, 2.8
+ */
+router.post(
+  '/phone/verify-otp',
+  otpLimiter,
+  validate(authSchemas.verifyOtp),
+  authController.verifyPhoneOtp
+);
+
+/**
+ * @route   POST /api/auth/phone/resend-otp
+ * @desc    Resend OTP to phone number
+ * @access  Public
+ * Requirements: 3.1, 3.2, 3.3
+ */
+router.post(
+  '/phone/resend-otp',
+  otpLimiter,
+  validate(authSchemas.resendOtp),
+  authController.resendPhoneOtp
 );
 
 module.exports = router;

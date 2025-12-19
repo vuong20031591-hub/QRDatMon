@@ -25,6 +25,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.qrdatmon.customer.ui.components.AppBottomNavigation
+import com.qrdatmon.customer.ui.theme.Dimensions
 
 data class AddOnItem(
     val name: String,
@@ -82,7 +83,10 @@ fun MenuItemDetailScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = 70.dp)
+                .padding(
+                    top = Dimensions.statusBarPadding,
+                    bottom = Dimensions.contentBottomPaddingSimple
+                )
         ) {
             // Header
             Row(

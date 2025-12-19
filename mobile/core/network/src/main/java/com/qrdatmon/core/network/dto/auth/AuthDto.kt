@@ -37,3 +37,28 @@ data class StaffData(
     val hireDate: String? = null,
     val isActive: Boolean = true
 )
+
+// Phone OTP Authentication DTOs
+
+@Serializable
+data class SendOtpRequest(
+    val phone: String
+)
+
+@Serializable
+data class SendOtpResponse(
+    val success: Boolean,
+    val message: String,
+    val cooldownSeconds: Int? = null
+)
+
+@Serializable
+data class VerifyOtpRequest(
+    val phone: String,
+    val otp: String
+)
+
+@Serializable
+data class ResendOtpRequest(
+    val phone: String
+)

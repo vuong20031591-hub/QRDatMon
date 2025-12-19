@@ -22,7 +22,7 @@ const getCategories = asyncHandler(async (req, res) => {
 
   const categories = await categoryService.getCategories(options);
 
-  return ok(res, { categories }, 'Categories retrieved successfully');
+  return ok(res, categories, 'Categories retrieved successfully');
 });
 
 /**

@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.runtime.collectAsState
+import com.qrdatmon.staff.ui.theme.Dimensions
 
 @Composable
 fun ProfileScreen(
@@ -71,6 +72,7 @@ fun ProfileScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF5F5F5))
+            .padding(top = Dimensions.statusBarPadding)
     ) {
         // Profile Header
         item {
