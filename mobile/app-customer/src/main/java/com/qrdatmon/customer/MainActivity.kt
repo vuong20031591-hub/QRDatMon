@@ -54,6 +54,7 @@ fun QRDatMonCustomerApp() {
     var phoneNumber by remember { mutableStateOf("") }
     var tableCode by remember { mutableStateOf("") }
     var selectedMenuItem by remember { mutableStateOf("") }
+    var selectedMenuItemId by remember { mutableStateOf("") }
     
     // Google Sign-In ViewModel cho Onboarding screen
     val googleSignInViewModel: GoogleSignInViewModel = hiltViewModel()
@@ -145,19 +146,21 @@ fun QRDatMonCustomerApp() {
                 },
                 onNavigateToOrderStatus = { currentScreen = "order_status" },
                 onViewAllPromos = { currentScreen = "promo_detail" },
-                onMenuItemClick = { itemName ->
-                    selectedMenuItem = itemName
+                onMenuItemClick = { itemId ->
+                    selectedMenuItemId = itemId
+                    selectedMenuItem = "" // Will be loaded from API
                     currentScreen = "menu_item_detail"
                 }
             )
         }
         "menu_item_detail" -> {
             MenuItemDetailScreen(
-                itemName = selectedMenuItem,
+                itemId = selectedMenuItemId,
+                itemName = "", // Will be loaded from API
                 tableCode = tableCode.ifEmpty { "A12" },
                 onBackClick = { currentScreen = "menu" },
                 onAddToCart = { quantity ->
-                    // TODO: Add to cart logic
+                    // Navigate to cart after adding item
                     currentScreen = "cart"
                 },
                 onNavigateToMenu = { currentScreen = "menu" },

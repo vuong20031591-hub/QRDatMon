@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.qrdatmon.core.common.util.ImageUrlBuilder
 import com.qrdatmon.customer.ui.components.AppBottomNavigation
 import com.qrdatmon.customer.ui.theme.Dimensions
 
@@ -50,7 +51,7 @@ fun CartScreen(
     onNavigateToMenu: () -> Unit,
     onNavigateToOrderStatus: () -> Unit
 ) {
-    var cartItems by remember { mutableStateOf(emptyList<CartItem>()) }
+    val cartItems by com.qrdatmon.customer.data.CartManager.cartItems.collectAsState()
 
     val subtotal = cartItems.sumOf { (it.price + it.toppingPrice) * it.quantity }
     val shippingFee = 0
@@ -157,13 +158,10 @@ fun CartScreen(
                                 CartItemCard(
                                     item = item,
                                     onQuantityChange = { newQuantity ->
-                                        cartItems = cartItems.map { 
-                                            if (it.id == item.id) it.copy(quantity = newQuantity) 
-                                            else it 
-                                        }
+                                        com.qrdatmon.customer.data.CartManager.updateQuantity(item.id, newQuantity)
                                     },
                                     onRemove = {
-                                        cartItems = cartItems.filter { it.id != item.id }
+                                        com.qrdatmon.customer.data.CartManager.removeItem(item.id)
                                     }
                                 )
                             }
@@ -363,7 +361,7 @@ private fun CartItemCard(
                     .clip(RoundedCornerShape(12.dp))
             ) {
                 coil.compose.AsyncImage(
-                    model = item.imageUrl,
+                    model = ImageUrlBuilder.buildFullUrl(item.imageUrl),
                     contentDescription = item.name,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,

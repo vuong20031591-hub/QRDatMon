@@ -5,12 +5,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,19 +22,22 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.hilt.navigation.compose.hiltViewModel
 
 @Composable
 fun TableCodeInputScreen(
     onBackClick: () -> Unit,
     onConfirmClick: (String) -> Unit,
-    onScanQrClick: () -> Unit
+    onScanQrClick: () -> Unit,
+    viewModel: TableCodeInputViewModel = hiltViewModel()
 ) {
-    var tableCode by remember { mutableStateOf("") }
-    val isCodeValid = tableCode.isNotEmpty()
+    val uiState by viewModel.uiState.collectAsState()
+    var selectedTable by remember { mutableStateOf<TableItem?>(null) }
+    val isCodeValid = selectedTable != null
 
     Box(
         modifier = Modifier
@@ -74,15 +79,21 @@ fun TableCodeInputScreen(
 
                 // Input Card
                 TableCodeInputCard(
-                    tableCode = tableCode,
-                    onTableCodeChange = { tableCode = it }
+                    selectedTable = selectedTable,
+                    tables = uiState.tables,
+                    isLoading = uiState.isLoading,
+                    onTableSelected = { selectedTable = it }
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // Confirm Button
                 Button(
-                    onClick = { if (isCodeValid) onConfirmClick(tableCode) },
+                    onClick = { 
+                        if (isCodeValid && selectedTable != null) {
+                            onConfirmClick(selectedTable!!.id)
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp),
@@ -237,13 +248,13 @@ private fun TableCodeTitle() {
         verticalArrangement = Arrangement.spacedBy(5.dp)
     ) {
         Text(
-            text = "Nhập số bàn hoặc mã trên thẻ",
+            text = "Chọn bàn của bạn",
             fontSize = 18.sp,
             fontWeight = FontWeight.SemiBold,
             color = Color(0xFF222222)
         )
         Text(
-            text = "Nếu không quét được QR, hãy điền mã được in trên bàn, kẹp hóa đơn hoặc thẻ nhỏ.",
+            text = "Nếu không quét được QR, hãy chọn bàn từ danh sách bên dưới để bắt đầu đặt món.",
             fontSize = 14.sp,
             fontWeight = FontWeight.Normal,
             color = Color(0xFF666666),
@@ -254,9 +265,13 @@ private fun TableCodeTitle() {
 
 @Composable
 private fun TableCodeInputCard(
-    tableCode: String,
-    onTableCodeChange: (String) -> Unit
+    selectedTable: TableItem?,
+    tables: List<TableItem>,
+    isLoading: Boolean,
+    onTableSelected: (TableItem) -> Unit
 ) {
+    var showDropdown by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -265,7 +280,7 @@ private fun TableCodeInputCard(
             .padding(horizontal = 14.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Label and Example
+        // Label
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -276,70 +291,67 @@ private fun TableCodeInputCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Số bàn / Mã bàn",
+                    text = "Chọn bàn",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = Color(0xFF222222)
                 )
-                Text(
-                    text = "Ví dụ: A12, B5, 203...",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Normal,
-                    color = Color(0xFF666666)
-                )
+                if (tables.isNotEmpty()) {
+                    Text(
+                        text = "${tables.size} bàn có sẵn",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = Color(0xFF666666)
+                    )
+                }
             }
 
-            // Input Field
-            Row(
+            // Dropdown Field
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(39.dp)
+                    .height(48.dp)
                     .background(Color(0xFFF5F5F5), RoundedCornerShape(8.dp))
-                    .border(1.dp, Color(0xFFF5F5F5), RoundedCornerShape(8.dp))
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(8.dp))
+                    .clickable { if (!isLoading && tables.isNotEmpty()) showDropdown = true }
+                    .padding(horizontal = 12.dp),
+                contentAlignment = Alignment.CenterStart
             ) {
-                // Prefix
-                Text(
-                    text = "Bàn",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color(0xFF666666),
-                    modifier = Modifier.padding(end = 8.dp)
-                )
-
-                Box(
-                    modifier = Modifier
-                        .width(1.dp)
-                        .height(17.dp)
-                        .background(Color(0xFFE0E0E0))
-                )
-
-                // Input
-                BasicTextField(
-                    value = tableCode,
-                    onValueChange = onTableCodeChange,
-                    modifier = Modifier.weight(1f),
-                    textStyle = androidx.compose.ui.text.TextStyle(
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Normal,
-                        color = Color(0xFF222222)
-                    ),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                    singleLine = true,
-                    decorationBox = { innerTextField ->
-                        if (tableCode.isEmpty()) {
-                            Text(
-                                text = "Nhập số bàn hoặc mã của bạn",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Normal,
-                                color = Color(0xFF666666)
-                            )
-                        }
-                        innerTextField()
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (isLoading) {
+                        Text(
+                            text = "Đang tải danh sách bàn...",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = Color(0xFF666666)
+                        )
+                    } else if (tables.isEmpty()) {
+                        Text(
+                            text = "Không có bàn nào",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = Color(0xFF666666)
+                        )
+                    } else {
+                        Text(
+                            text = selectedTable?.displayName ?: "Chọn bàn của bạn",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = if (selectedTable != null) Color(0xFF222222) else Color(0xFF666666)
+                        )
                     }
-                )
+                    
+                    Icon(
+                        imageVector = if (showDropdown) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = Color(0xFF666666),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
 
@@ -357,13 +369,128 @@ private fun TableCodeInputCard(
                     .offset(y = 6.dp)
             )
             Text(
-                text = "Hãy đảm bảo bạn nhập đúng mã tại bàn hiện tại để nhà hàng phục vụ chính xác cho bạn.",
+                text = "Hãy đảm bảo bạn chọn đúng bàn hiện tại để nhà hàng phục vụ chính xác cho bạn.",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Normal,
                 color = Color(0xFF666666),
                 lineHeight = 17.sp,
                 modifier = Modifier.weight(1f)
             )
+        }
+    }
+
+    // Dropdown Dialog
+    if (showDropdown) {
+        TableSelectionDialog(
+            tables = tables,
+            selectedTable = selectedTable,
+            onTableSelected = { table ->
+                onTableSelected(table)
+                showDropdown = false
+            },
+            onDismiss = { showDropdown = false }
+        )
+    }
+}
+
+@Composable
+private fun TableSelectionDialog(
+    tables: List<TableItem>,
+    selectedTable: TableItem?,
+    onTableSelected: (TableItem) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 500.dp),
+            shape = RoundedCornerShape(16.dp),
+            color = Color.White
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Header
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = "Chọn bàn",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF222222)
+                    )
+                }
+
+                Divider(color = Color(0xFFE0E0E0), thickness = 1.dp)
+
+                // Table List
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(tables) { table ->
+                        TableItemRow(
+                            table = table,
+                            isSelected = table.id == selectedTable?.id,
+                            onClick = { onTableSelected(table) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TableItemRow(
+    table: TableItem,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .background(if (isSelected) Color(0x1AFF6F3C) else Color.Transparent)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = table.displayName,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF222222)
+            )
+            Text(
+                text = "Khu vực: ${table.areaName}",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Normal,
+                color = Color(0xFF666666)
+            )
+        }
+
+        if (isSelected) {
+            Box(
+                modifier = Modifier
+                    .size(20.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFFF6F3C)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = painterResource(id = android.R.drawable.ic_menu_close_clear_cancel),
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(12.dp)
+                )
+            }
         }
     }
 }

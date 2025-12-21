@@ -223,7 +223,7 @@ private fun RowScope.LargeFoodCard() {
                 contentAlignment = Alignment.Center
             ) {
                 Image(
-                    painter = painterResource(id = android.R.drawable.ic_menu_gallery),
+                    painter = painterResource(id = com.qrdatmon.customer.R.drawable.food_bbq_combo),
                     contentDescription = "Food",
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
@@ -285,7 +285,7 @@ private fun SmallFoodCard() {
                     .background(Color(0xFFF5F5F5))
             ) {
                 Image(
-                    painter = painterResource(id = android.R.drawable.ic_menu_gallery),
+                    painter = painterResource(id = com.qrdatmon.customer.R.drawable.food_platter),
                     contentDescription = "Food",
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop

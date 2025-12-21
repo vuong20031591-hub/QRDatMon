@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.qrdatmon.core.common.util.ImageUrlBuilder
 import com.qrdatmon.customer.ui.components.AppBottomNavigation
 import com.qrdatmon.customer.ui.theme.Dimensions
 
@@ -63,19 +64,6 @@ fun MenuScreen(
 
     val uiState by viewModel.uiState.collectAsState()
     
-    // Build categories list with "Tất cả" option
-    val categories = remember(uiState.categories) {
-        listOf("Tất cả") + uiState.categories.map { it.name }
-    }
-    
-    val selectedCategory = remember(uiState.selectedCategoryId, uiState.categories) {
-        if (uiState.selectedCategoryId == null) {
-            "Tất cả"
-        } else {
-            uiState.categories.find { it.id == uiState.selectedCategoryId }?.name ?: "Tất cả"
-        }
-    }
-    
     // Convert backend MenuItemResponse to UI MenuItem
     val menuItems = remember(uiState.menuItems) {
         uiState.menuItems.map { item ->
@@ -85,7 +73,7 @@ fun MenuScreen(
                 description = item.description ?: "",
                 price = item.price.toInt(),
                 originalPrice = null,
-                imageUrl = item.imageUrl ?: "",
+                imageUrl = ImageUrlBuilder.buildFullUrl(item.imageUrl) ?: "",
                 category = "", // Category name not in response
                 isPopular = item.isPopular,
                 isNew = item.isNew,
@@ -164,15 +152,10 @@ fun MenuScreen(
                 // Category Filter
                 item {
                     CategoryFilter(
-                        categories = categories,
-                        selectedCategory = selectedCategory,
-                        onCategorySelected = { category ->
-                            if (category == "Tất cả") {
-                                viewModel.selectCategory(null)
-                            } else {
-                                val categoryId = uiState.categories.find { it.name == category }?.id
-                                viewModel.selectCategory(categoryId)
-                            }
+                        categories = uiState.categories,
+                        selectedCategoryId = uiState.selectedCategoryId,
+                        onCategorySelected = { categoryId ->
+                            viewModel.selectCategory(categoryId)
                         }
                     )
                 }
@@ -549,13 +532,13 @@ private fun PromotionCard(
 
 @Composable
 private fun CategoryFilter(
-    categories: List<String>,
-    selectedCategory: String,
-    onCategorySelected: (String) -> Unit
+    categories: List<com.qrdatmon.core.network.dto.menu.CategoryResponse>,
+    selectedCategoryId: String?,
+    onCategorySelected: (String?) -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Row(
             modifier = Modifier
@@ -579,33 +562,92 @@ private fun CategoryFilter(
         }
 
         LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            // "Tất cả" option
+            item {
+                CategoryChip(
+                    name = "Tất cả",
+                    imageUrl = null,
+                    isSelected = selectedCategoryId == null,
+                    onClick = { onCategorySelected(null) }
+                )
+            }
+            
+            // Category items with images
             items(categories) { category ->
-                val isSelected = category == selectedCategory
-                Box(
-                    modifier = Modifier
-                        .background(
-                            color = if (isSelected) Color(0xFFFF6F3C) else Color(0xFFF5F5F5),
-                            shape = RoundedCornerShape(999.dp)
-                        )
-                        .border(
-                            width = 1.dp,
-                            color = if (isSelected) Color(0xFFFF6F3C) else Color(0x40FF6F3C),
-                            shape = RoundedCornerShape(999.dp)
-                        )
-                        .clickable { onCategorySelected(category) }
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                ) {
-                    Text(
-                        text = category,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = if (isSelected) Color.White else Color(0xFFFF6F3C)
-                    )
-                }
+                CategoryChip(
+                    name = category.name,
+                    imageUrl = ImageUrlBuilder.buildFullUrl(category.imageUrl),
+                    isSelected = category.id == selectedCategoryId,
+                    onClick = { onCategorySelected(category.id) }
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun CategoryChip(
+    name: String,
+    imageUrl: String?,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .width(72.dp)
+            .clickable { onClick() },
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        // Category Image
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .background(
+                    color = if (isSelected) Color(0xFFFFE4D6) else Color(0xFFF5F5F5),
+                    shape = RoundedCornerShape(16.dp)
+                )
+                .border(
+                    width = if (isSelected) 2.dp else 0.dp,
+                    color = if (isSelected) Color(0xFFFF6F3C) else Color.Transparent,
+                    shape = RoundedCornerShape(16.dp)
+                )
+                .clip(RoundedCornerShape(16.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            if (imageUrl != null) {
+                AsyncImage(
+                    model = imageUrl,
+                    contentDescription = name,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop,
+                    error = painterResource(id = android.R.drawable.ic_menu_gallery),
+                    placeholder = painterResource(id = android.R.drawable.ic_menu_gallery)
+                )
+            } else {
+                // Icon for "Tất cả"
+                Icon(
+                    imageVector = Icons.Outlined.Restaurant,
+                    contentDescription = name,
+                    modifier = Modifier.size(28.dp),
+                    tint = if (isSelected) Color(0xFFFF6F3C) else Color(0xFF666666)
+                )
+            }
+        }
+        
+        // Category Name
+        Text(
+            text = name,
+            fontSize = 11.sp,
+            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+            color = if (isSelected) Color(0xFFFF6F3C) else Color(0xFF666666),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 

@@ -43,7 +43,8 @@ class MenuRepositoryImpl @Inject constructor(
         
         when (result) {
             is NetworkResult.Success -> {
-                emit(Result.Success(result.data.toMenuItem()))
+                // Extract item from wrapper response
+                emit(Result.Success(result.data.item.toMenuItem()))
             }
             is NetworkResult.Error -> {
                 emit(Result.Error(Exception(result.message), result.message))

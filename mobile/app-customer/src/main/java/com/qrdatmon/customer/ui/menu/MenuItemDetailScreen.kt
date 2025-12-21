@@ -20,10 +20,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import com.qrdatmon.customer.ui.components.AppBottomNavigation
 import com.qrdatmon.customer.ui.theme.Dimensions
 
@@ -36,17 +39,28 @@ data class AddOnItem(
 
 @Composable
 fun MenuItemDetailScreen(
+    itemId: String,
     itemName: String,
     tableCode: String,
     onBackClick: () -> Unit,
     onAddToCart: (Int) -> Unit,
     onNavigateToMenu: () -> Unit,
     onNavigateToCart: () -> Unit,
-    onNavigateToOrderStatus: () -> Unit
+    onNavigateToOrderStatus: () -> Unit,
+    viewModel: MenuItemDetailViewModel = hiltViewModel()
 ) {
     var quantity by remember { mutableStateOf(1) }
     var selectedTab by remember { mutableStateOf("menu") }
     var note by remember { mutableStateOf("") }
+    
+    val uiState by viewModel.uiState.collectAsState()
+    
+    // Load menu item khi screen được mở
+    LaunchedEffect(itemId) {
+        if (itemId.isNotEmpty()) {
+            viewModel.loadMenuItem(itemId)
+        }
+    }
 
     val addOns = remember {
         listOf(
@@ -56,7 +70,6 @@ fun MenuItemDetailScreen(
         )
     }
     var selectedAddOns by remember { mutableStateOf(setOf<String>()) }
-    var selectedPortion by remember { mutableStateOf("Phần thường") }
 
     Box(
         modifier = Modifier
@@ -143,18 +156,45 @@ fun MenuItemDetailScreen(
                             .fillMaxWidth()
                             .height(240.dp)
                             .background(Color(0xFFF5F5F5), RoundedCornerShape(20.dp))
+                            .clip(RoundedCornerShape(20.dp))
                     ) {
-                        // Placeholder image
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Restaurant,
-                                contentDescription = null,
-                                modifier = Modifier.size(80.dp),
-                                tint = Color(0xFFCCCCCC)
+                        // Load hình ảnh từ API
+                        val imageUrl = uiState.menuItem?.imageUrl
+                        val fullImageUrl = uiState.imageUrl
+                        
+                        if (!fullImageUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = fullImageUrl,
+                                contentDescription = itemName,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop,
+                                error = painterResource(id = android.R.drawable.ic_menu_gallery),
+                                placeholder = painterResource(id = android.R.drawable.ic_menu_gallery)
                             )
+                        } else {
+                            // Placeholder khi chưa có hình
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Restaurant,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(80.dp),
+                                        tint = Color(0xFFCCCCCC)
+                                    )
+                                    if (uiState.isLoading) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp),
+                                            color = Color(0xFFFF6F3C)
+                                        )
+                                    }
+                                }
+                            }
                         }
 
                         // Badges
@@ -228,7 +268,7 @@ fun MenuItemDetailScreen(
                             verticalAlignment = Alignment.Top
                         ) {
                             Text(
-                                text = itemName,
+                                text = uiState.menuItem?.name ?: itemName,
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF222222),
@@ -253,67 +293,22 @@ fun MenuItemDetailScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            val price = uiState.menuItem?.price ?: 0.0
+                            val formattedPrice = String.format("%,.0f", price).replace(",", ".")
+                            
                             Text(
-                                text = "55.000đ",
+                                text = "${formattedPrice}đ",
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFFF6F3C)
                             )
-                            Text(
-                                text = "65.000đ",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Normal,
-                                color = Color(0xFF999999),
-                                style = androidx.compose.ui.text.TextStyle(
-                                    textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
-                                )
-                            )
                         }
 
-                        // Tags
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .background(Color(0xFFF5F5F5), RoundedCornerShape(999.dp))
-                                    .padding(horizontal = 10.dp, vertical = 5.dp)
-                            ) {
-                                Text(
-                                    text = "⚡ Phục vụ nhanh",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF666666)
-                                )
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .background(Color(0xFFF5F5F5), RoundedCornerShape(999.dp))
-                                    .padding(horizontal = 10.dp, vertical = 5.dp)
-                            ) {
-                                Text(
-                                    text = "🍽️ 1 người",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF666666)
-                                )
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .background(Color(0xFFF5F5F5), RoundedCornerShape(999.dp))
-                                    .padding(horizontal = 10.dp, vertical = 5.dp)
-                            ) {
-                                Text(
-                                    text = "🌶️ Không cay",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF666666)
-                                )
-                            }
-                        }
+                        // Tags - Remove hardcoded tags
+                        // Tags will be dynamic based on backend data in future
 
                         Text(
-                            text = "Cơm tấm sườn nướng thơm ngon, bì giòn rụm, chả trứng mềm mịn. Kèm theo mỡ hành thơm phức và nước mắm chua ngọt đặc trưng miền Nam.",
+                            text = uiState.menuItem?.description ?: "Món ăn ngon, được chế biến từ nguyên liệu tươi sạch.",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Normal,
                             color = Color(0xFF666666),
@@ -322,50 +317,7 @@ fun MenuItemDetailScreen(
                     }
                 }
 
-                // Portion Selection
-                item {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Text(
-                            text = "Chọn khẩu phần",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF222222)
-                        )
-
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            listOf("Phần thường", "Phần lớn (+15.000đ)").forEach { portion ->
-                                val isSelected = selectedPortion == portion
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .background(
-                                            color = if (isSelected) Color(0x1AFF6F3C) else Color.White,
-                                            shape = RoundedCornerShape(12.dp)
-                                        )
-                                        .border(
-                                            width = 1.5.dp,
-                                            color = if (isSelected) Color(0xFFFF6F3C) else Color(0xFFE5E5E5),
-                                            shape = RoundedCornerShape(12.dp)
-                                        )
-                                        .clickable { selectedPortion = portion }
-                                        .padding(12.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = portion,
-                                        fontSize = 13.sp,
-                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                                        color = if (isSelected) Color(0xFFFF6F3C) else Color(0xFF666666)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+                // Portion Selection - Removed as requested
 
                 // Add-ons Section
                 item {
@@ -567,7 +519,27 @@ fun MenuItemDetailScreen(
             }
 
             Button(
-                onClick = { onAddToCart(quantity) },
+                onClick = {
+                    uiState.menuItem?.let { item ->
+                        val toppingPrice = addOns
+                            .filter { selectedAddOns.contains(it.name) }
+                            .sumOf { it.price }
+                        
+                        val cartItem = com.qrdatmon.customer.ui.cart.CartItem(
+                            id = item.id,
+                            name = item.name,
+                            description = item.description ?: "",
+                            price = item.price.toInt(),
+                            toppingPrice = toppingPrice,
+                            quantity = quantity,
+                            imageUrl = uiState.imageUrl ?: "",
+                            note = note.ifBlank { null }
+                        )
+                        
+                        com.qrdatmon.customer.data.CartManager.addItem(cartItem)
+                        onAddToCart(quantity)
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
@@ -580,6 +552,10 @@ fun MenuItemDetailScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    val price = uiState.menuItem?.price ?: 0.0
+                    val totalPrice = price * quantity
+                    val formattedTotal = String.format("%,.0f", totalPrice).replace(",", ".")
+                    
                     Text(
                         text = "Thêm vào giỏ",
                         fontSize = 15.sp,
@@ -592,7 +568,7 @@ fun MenuItemDetailScreen(
                         color = Color.White
                     )
                     Text(
-                        text = "${55 * quantity}.000đ",
+                        text = "${formattedTotal}đ",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
