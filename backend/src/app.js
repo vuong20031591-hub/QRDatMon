@@ -149,14 +149,14 @@ const startServer = async () => {
 
     // Connect to MongoDB
     await connectDB();
-    console.log("✅ Database connected");
+    console.log("Database connected");
 
     // Initialize Firebase (if configured)
     const firebase = require("./config/firebase");
     if (firebase.isInitialized()) {
-      console.log("✅ Firebase initialized");
+      console.log("Firebase initialized");
     } else {
-      console.warn("⚠️  Firebase not configured - Google auth will not work");
+      console.warn("⚠️Firebase not configured - Google auth will not work");
     }
 
     // Create HTTP server
@@ -169,14 +169,14 @@ const startServer = async () => {
     // Start listening
     server.listen(PORT, () => {
       console.log("");
-      console.log("🚀 QRDatMon API Server Started");
-      console.log("================================");
-      console.log(`📍 Environment: ${config.server.env}`);
-      console.log(`📍 Port: ${PORT}`);
-      console.log(`📍 API Base: http://localhost:${PORT}/api`);
-      console.log(`📍 Health Check: http://localhost:${PORT}/health`);
-      console.log(`📍 API Docs: http://localhost:${PORT}/api/docs`);
-      console.log("================================");
+      console.log("QRDatMon API Server Started");
+      console.log("================================================");
+      console.log(`Environment: ${config.server.env}`);
+      console.log(`Port: ${PORT}`);
+      console.log(`API Base: http://localhost:${PORT}/api`);
+      console.log(`Health Check: http://localhost:${PORT}/health`);
+      console.log(`API Docs: http://localhost:${PORT}/api/docs`);
+      console.log("================================================");
       console.log("");
     });
 

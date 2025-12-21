@@ -133,16 +133,16 @@ const clearData = async () => {
     Table.deleteMany({})
     // Note: Settings are not cleared to preserve configuration
   ]);
-  console.log('✅ Data cleared');
+  console.log('Data cleared');
 };
 
 /**
  * Seed categories
  */
 const seedCategories = async () => {
-  console.log('📁 Seeding categories...');
+  console.log('Seeding categories...');
   const categories = await Category.insertMany(categoriesData);
-  console.log(`✅ Created ${categories.length} categories`);
+  console.log(` Created ${categories.length} categories`);
   return categories;
 };
 
@@ -150,7 +150,7 @@ const seedCategories = async () => {
  * Seed menu items
  */
 const seedMenuItems = async (categories) => {
-  console.log('🍽️  Seeding menu items...');
+  console.log('Seeding menu items...');
 
   const categoryMap = {};
   categories.forEach(cat => {
@@ -174,16 +174,16 @@ const seedMenuItems = async (categories) => {
     totalItems += menuItems.length;
   }
 
-  console.log(`✅ Created ${totalItems} menu items`);
+  console.log(` Created ${totalItems} menu items`);
 };
 
 /**
  * Seed areas
  */
 const seedAreas = async () => {
-  console.log('🏠 Seeding areas...');
+  console.log('seeding areas...');
   const areas = await Area.insertMany(areasData);
-  console.log(`✅ Created ${areas.length} areas`);
+  console.log(` Created ${areas.length} areas`);
   return areas;
 };
 
@@ -191,7 +191,7 @@ const seedAreas = async () => {
  * Seed tables
  */
 const seedTables = async (areas) => {
-  console.log('🪑 Seeding tables...');
+  console.log('Seeding tables...');
 
   const tablesData = [];
 
@@ -260,7 +260,7 @@ const seedTables = async (areas) => {
   }
 
   const tables = await Table.insertMany(tablesData);
-  console.log(`✅ Created ${tables.length} tables`);
+  console.log(` Created ${tables.length} tables`);
   return tables;
 };
 
@@ -268,7 +268,7 @@ const seedTables = async (areas) => {
  * Seed system settings
  */
 const seedSettings = async () => {
-  console.log('⚙️  Seeding system settings...');
+  console.log('Seeding system settings...');
 
   let created = 0;
   let updated = 0;
@@ -288,14 +288,14 @@ const seedSettings = async () => {
     }
   }
 
-  console.log(`✅ Settings: ${created} created, ${updated} updated`);
+  console.log(` Settings: ${created} created, ${updated} updated`);
 };
 
 /**
  * Seed admin user
  */
 const seedAdminUser = async () => {
-  console.log('👤 Seeding admin user...');
+  console.log('Seeding admin user...');
 
   // Hash password
   const passwordHash = await bcrypt.hash('123456', 10);
@@ -308,16 +308,16 @@ const seedAdminUser = async () => {
       ...adminUserData,
       passwordHash
     });
-    console.log('✅ Created admin user');
-    console.log('   📧 Email: admin@qrdatmon.com');
-    console.log('   🔑 Password: 123456');
+    console.log(' Created admin user');
+    console.log('Email: admin@qrdatmon.com');
+    console.log('Password: 123456');
   } else {
     // Update password if user exists
     adminUser.passwordHash = passwordHash;
     await adminUser.save();
-    console.log('ℹ️  Admin user already exists - password updated');
-    console.log('   📧 Email: admin@qrdatmon.com');
-    console.log('   🔑 Password: 123456');
+    console.log('Admin user already exists - password updated');
+    console.log('Email: admin@qrdatmon.com');
+    console.log('Password: 123456');
   }
 
   // Check if staff record exists
@@ -328,9 +328,9 @@ const seedAdminUser = async () => {
       ...adminStaffData,
       user: adminUser._id
     });
-    console.log('✅ Created admin staff record');
+    console.log('Created admin staff record');
   } else {
-    console.log('ℹ️  Admin staff record already exists');
+    console.log('Admin staff record already exists');
   }
 
   return { user: adminUser, staff: adminStaff };
@@ -341,7 +341,7 @@ const seedAdminUser = async () => {
  */
 const seed = async () => {
   try {
-    console.log('🌱 Starting database seed...\n');
+    console.log('Starting database seed...\n');
 
     // Connect to database
     await connectDB();
@@ -357,10 +357,10 @@ const seed = async () => {
     const tables = await seedTables(areas);
     await seedAdminUser();
 
-    console.log('\n✨ Database seeding completed successfully!\n');
+    console.log('\nDatabase seeding completed successfully!\n');
 
     // Print summary
-    console.log('📊 Summary:');
+    console.log('Summary:');
     console.log(`   - Categories: ${categories.length}`);
     console.log(`   - Menu Items: ${Object.values(menuItemsData).flat().length}`);
     console.log(`   - Areas: ${areas.length}`);
@@ -368,12 +368,12 @@ const seed = async () => {
     console.log(`   - Admin User: 1`);
 
     // Print sample QR token for testing
-    console.log('\n🔑 Sample QR Token for testing:');
+    console.log('\nSample QR Token for testing:');
     console.log(`   Table: ${tables[0].tableNumber}`);
     console.log(`   Token: ${tables[0].qrToken}`);
 
   } catch (error) {
-    console.error('❌ Seeding failed:', error.message);
+    console.error('Seeding failed:', error.message);
     console.error(error);
   } finally {
     await disconnectDB();

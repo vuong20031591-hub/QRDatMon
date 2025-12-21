@@ -102,7 +102,7 @@ const initializeSocket = (httpServer) => {
     });
   });
 
-  console.log('✅ Socket.io initialized');
+  console.log(' Socket.io initialized');
   return io;
 };
 
