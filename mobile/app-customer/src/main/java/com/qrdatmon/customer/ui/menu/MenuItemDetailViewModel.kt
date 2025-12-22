@@ -16,6 +16,7 @@ data class MenuItemDetailUiState(
     val isLoading: Boolean = false,
     val menuItem: MenuItemResponse? = null,
     val imageUrl: String? = null,
+    val suggestedItems: List<MenuItemResponse> = emptyList(),
     val errorMessage: String = ""
 )
 
@@ -52,6 +53,11 @@ class MenuItemDetailViewModel @Inject constructor(
                         imageUrl = fullImageUrl,
                         errorMessage = ""
                     )
+                    
+                    // Load suggested items from same category
+                    item.category?.id?.let { categoryId ->
+                        loadSuggestedItems(categoryId, itemId)
+                    }
                 } else {
                     println("MenuItemDetailViewModel: Error - ${response.message}")
                     _uiState.value = _uiState.value.copy(
@@ -66,6 +72,37 @@ class MenuItemDetailViewModel @Inject constructor(
                     isLoading = false,
                     errorMessage = e.message ?: "Đã xảy ra lỗi"
                 )
+            }
+        }
+    }
+    
+    private fun loadSuggestedItems(categoryId: String, currentItemId: String) {
+        viewModelScope.launch {
+            try {
+                println("MenuItemDetailViewModel: Loading suggested items for category: $categoryId")
+                
+                val response = menuApi.getMenuItems(
+                    categoryId = categoryId,
+                    status = "available"
+                )
+                
+                if (response.success && response.data != null) {
+                    // Filter out current item and take first 5 items
+                    val suggested = response.data!!
+                        .filter { it.id != currentItemId }
+                        .take(5)
+                    
+                    println("MenuItemDetailViewModel: Found ${suggested.size} suggested items")
+                    
+                    _uiState.value = _uiState.value.copy(
+                        suggestedItems = suggested
+                    )
+                } else {
+                    println("MenuItemDetailViewModel: Failed to load suggested items - ${response.message}")
+                }
+            } catch (e: Exception) {
+                println("MenuItemDetailViewModel: Exception loading suggested items - ${e.message}")
+                e.printStackTrace()
             }
         }
     }

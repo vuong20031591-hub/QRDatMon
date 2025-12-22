@@ -61,6 +61,11 @@ fun QRDatMonCustomerApp() {
     val googleSignInState by googleSignInViewModel.uiState.collectAsState()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    
+    // Get AuthManager to check login state
+    val authManager = remember { 
+        com.qrdatmon.core.common.auth.AuthManager(context, "customer_auth_prefs")
+    }
 
     // Handle Google Sign-In success từ Onboarding
     LaunchedEffect(googleSignInState.isSuccess) {
@@ -87,7 +92,14 @@ fun QRDatMonCustomerApp() {
         when (currentScreen) {
             "splash" -> {
                 SimpleSplashScreen(
-                    onNavigateToHome = { currentScreen = "onboarding" }
+                    onNavigateToHome = { 
+                        // Check if user is already logged in
+                        currentScreen = if (authManager.isLoggedIn()) {
+                            "qr_scan" // Skip onboarding if logged in
+                        } else {
+                            "onboarding"
+                        }
+                    }
                 )
             }
             "onboarding" -> {
@@ -126,8 +138,8 @@ fun QRDatMonCustomerApp() {
         "table_code_input" -> {
             TableCodeInputScreen(
                 onBackClick = { currentScreen = "qr_scan" },
-                onConfirmClick = { code ->
-                    tableCode = code
+                onConfirmClick = { tableId ->
+                    tableCode = tableId
                     currentScreen = "menu"
                 },
                 onScanQrClick = { currentScreen = "qr_scan" }
@@ -183,7 +195,8 @@ fun QRDatMonCustomerApp() {
                     currentScreen = "order_status"
                 },
                 onNavigateToMenu = { currentScreen = "menu" },
-                onNavigateToOrderStatus = { currentScreen = "order_status" }
+                onNavigateToOrderStatus = { currentScreen = "order_status" },
+                onNavigateToLogin = { currentScreen = "login" }
             )
         }
         "order_status" -> {

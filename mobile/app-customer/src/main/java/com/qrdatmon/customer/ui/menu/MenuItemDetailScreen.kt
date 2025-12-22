@@ -27,15 +27,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.qrdatmon.core.network.dto.menu.MenuItemResponse
 import com.qrdatmon.customer.ui.components.AppBottomNavigation
 import com.qrdatmon.customer.ui.theme.Dimensions
-
-data class AddOnItem(
-    val name: String,
-    val description: String,
-    val price: Int,
-    val isFree: Boolean = false
-)
 
 @Composable
 fun MenuItemDetailScreen(
@@ -61,15 +55,6 @@ fun MenuItemDetailScreen(
             viewModel.loadMenuItem(itemId)
         }
     }
-
-    val addOns = remember {
-        listOf(
-            AddOnItem("Thêm trứng ốp la", "Trứng gà tươi chiên vàng giòn", 10000),
-            AddOnItem("Thêm rau sống", "Rau xà lách, húng quế, ngò gai", 0, isFree = true),
-            AddOnItem("Thêm nước mắm ớt", "Nước mắm chua ngọt cay", 5000)
-        )
-    }
-    var selectedAddOns by remember { mutableStateOf(setOf<String>()) }
 
     Box(
         modifier = Modifier
@@ -319,84 +304,7 @@ fun MenuItemDetailScreen(
 
                 // Portion Selection - Removed as requested
 
-                // Add-ons Section
-                item {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Text(
-                            text = "Thêm món phụ (tùy chọn)",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF222222)
-                        )
-
-                        addOns.forEach { addOn ->
-                            val isSelected = selectedAddOns.contains(addOn.name)
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(Color.White, RoundedCornerShape(12.dp))
-                                    .border(
-                                        width = 1.dp,
-                                        color = if (isSelected) Color(0xFFFF6F3C) else Color(0xFFE5E5E5),
-                                        shape = RoundedCornerShape(12.dp)
-                                    )
-                                    .clickable {
-                                        selectedAddOns = if (isSelected) {
-                                            selectedAddOns - addOn.name
-                                        } else {
-                                            selectedAddOns + addOn.name
-                                        }
-                                    }
-                                    .padding(12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                                ) {
-                                    Text(
-                                        text = addOn.name,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = Color(0xFF222222)
-                                    )
-                                    Text(
-                                        text = addOn.description,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Normal,
-                                        color = Color(0xFF999999),
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = if (addOn.isFree) "Miễn phí" else "+${addOn.price / 1000}.000đ",
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = if (addOn.isFree) Color(0xFF22C55E) else Color(0xFF222222)
-                                    )
-
-                                    Checkbox(
-                                        checked = isSelected,
-                                        onCheckedChange = null,
-                                        colors = CheckboxDefaults.colors(
-                                            checkedColor = Color(0xFFFF6F3C),
-                                            uncheckedColor = Color(0xFFCCCCCC)
-                                        )
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+                // Add-ons Section - Removed as not needed
 
                 // Note Input
                 item {
@@ -446,11 +354,29 @@ fun MenuItemDetailScreen(
                             color = Color(0xFF222222)
                         )
 
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            items(3) { index ->
-                                SuggestedItemCard()
+                        if (uiState.suggestedItems.isEmpty()) {
+                            // Show placeholder when no suggested items
+                            Text(
+                                text = "Không có món gợi ý",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Normal,
+                                color = Color(0xFF999999),
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        } else {
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                items(uiState.suggestedItems.size) { index ->
+                                    val item = uiState.suggestedItems[index]
+                                    SuggestedItemCard(
+                                        item = item,
+                                        onClick = {
+                                            // Navigate to this item's detail screen
+                                            viewModel.loadMenuItem(item.id)
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -521,16 +447,16 @@ fun MenuItemDetailScreen(
             Button(
                 onClick = {
                     uiState.menuItem?.let { item ->
-                        val toppingPrice = addOns
-                            .filter { selectedAddOns.contains(it.name) }
-                            .sumOf { it.price }
+                        // Generate unique cart item ID
+                        val cartItemId = "${item.id}_${System.currentTimeMillis()}"
                         
                         val cartItem = com.qrdatmon.customer.ui.cart.CartItem(
+                            cartItemId = cartItemId,
                             id = item.id,
                             name = item.name,
                             description = item.description ?: "",
                             price = item.price.toInt(),
-                            toppingPrice = toppingPrice,
+                            toppingPrice = 0, // No toppings
                             quantity = quantity,
                             imageUrl = uiState.imageUrl ?: "",
                             note = note.ifBlank { null }
@@ -598,13 +524,16 @@ fun MenuItemDetailScreen(
 }
 
 @Composable
-private fun SuggestedItemCard() {
+private fun SuggestedItemCard(
+    item: MenuItemResponse,
+    onClick: () -> Unit
+) {
     Box(
         modifier = Modifier
             .width(140.dp)
             .background(Color.White, RoundedCornerShape(12.dp))
             .border(1.dp, Color(0xFFE5E5E5), RoundedCornerShape(12.dp))
-            .clickable { /* TODO */ }
+            .clickable { onClick() }
             .padding(8.dp)
     ) {
         Column(
@@ -615,19 +544,22 @@ private fun SuggestedItemCard() {
                     .fillMaxWidth()
                     .height(90.dp)
                     .background(Color(0xFFF5F5F5), RoundedCornerShape(10.dp))
+                    .clip(RoundedCornerShape(10.dp))
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.Restaurant,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .align(Alignment.Center),
-                    tint = Color(0xFFCCCCCC)
+                val fullImageUrl = com.qrdatmon.core.common.util.ImageUrlBuilder.buildFullUrl(item.imageUrl)
+                
+                AsyncImage(
+                    model = fullImageUrl,
+                    contentDescription = item.name,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    error = painterResource(id = android.R.drawable.ic_menu_gallery),
+                    placeholder = painterResource(id = android.R.drawable.ic_menu_gallery)
                 )
             }
 
             Text(
-                text = "Trà đào cam sả",
+                text = item.name,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 color = Color(0xFF222222),
@@ -635,8 +567,9 @@ private fun SuggestedItemCard() {
                 overflow = TextOverflow.Ellipsis
             )
 
+            val formattedPrice = String.format("%,.0f", item.price).replace(",", ".")
             Text(
-                text = "39.000đ",
+                text = "${formattedPrice}đ",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color(0xFFFF6F3C)

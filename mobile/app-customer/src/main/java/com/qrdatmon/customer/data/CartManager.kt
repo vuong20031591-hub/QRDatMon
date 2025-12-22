@@ -18,9 +18,11 @@ object CartManager {
     fun addItem(item: CartItem) {
         val currentItems = _cartItems.value.toMutableList()
         
-        // Check if item already exists (same id and note)
+        // Check if exact same item exists (same menu id, note, and toppings)
         val existingIndex = currentItems.indexOfFirst { 
-            it.id == item.id && it.note == item.note 
+            it.id == item.id && 
+            it.note == item.note && 
+            it.toppingPrice == item.toppingPrice
         }
         
         if (existingIndex != -1) {
@@ -30,7 +32,7 @@ object CartManager {
                 quantity = existingItem.quantity + item.quantity
             )
         } else {
-            // Add new item
+            // Add new item with unique cartItemId
             currentItems.add(item)
         }
         
@@ -38,23 +40,23 @@ object CartManager {
     }
 
     /**
-     * Remove item from cart
+     * Remove item from cart by cartItemId
      */
-    fun removeItem(itemId: String) {
-        _cartItems.value = _cartItems.value.filter { it.id != itemId }
+    fun removeItem(cartItemId: String) {
+        _cartItems.value = _cartItems.value.filter { it.cartItemId != cartItemId }
     }
 
     /**
-     * Update item quantity
+     * Update item quantity by cartItemId
      */
-    fun updateQuantity(itemId: String, newQuantity: Int) {
+    fun updateQuantity(cartItemId: String, newQuantity: Int) {
         if (newQuantity <= 0) {
-            removeItem(itemId)
+            removeItem(cartItemId)
             return
         }
         
         _cartItems.value = _cartItems.value.map { item ->
-            if (item.id == itemId) {
+            if (item.cartItemId == cartItemId) {
                 item.copy(quantity = newQuantity)
             } else {
                 item

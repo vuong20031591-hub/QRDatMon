@@ -33,7 +33,8 @@ import com.qrdatmon.customer.ui.components.AppBottomNavigation
 import com.qrdatmon.customer.ui.theme.Dimensions
 
 data class CartItem(
-    val id: String,
+    val cartItemId: String, // Unique ID for each cart item
+    val id: String, // Menu item ID
     val name: String,
     val description: String,
     val price: Int,
@@ -49,14 +50,37 @@ fun CartScreen(
     onBackClick: () -> Unit,
     onCheckoutClick: () -> Unit,
     onNavigateToMenu: () -> Unit,
-    onNavigateToOrderStatus: () -> Unit
+    onNavigateToOrderStatus: () -> Unit,
+    onNavigateToLogin: () -> Unit = {}
 ) {
     val cartItems by com.qrdatmon.customer.data.CartManager.cartItems.collectAsState()
+    val selectedTable by com.qrdatmon.customer.data.TableManager.selectedTable.collectAsState()
+    val selectedPromotion by com.qrdatmon.customer.data.PromotionManager.selectedPromotion.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    
+    // Get AuthManager to check login state
+    val authManager = remember { 
+        com.qrdatmon.core.common.auth.AuthManager(context, "customer_auth_prefs")
+    }
+    val isLoggedIn = authManager.isLoggedIn()
+    
+    // Show login dialog state
+    var showLoginDialog by remember { mutableStateOf(false) }
+    
+    // Get table display name or fallback to tableCode
+    val tableDisplayName = selectedTable?.displayName ?: "Bàn $tableCode"
 
     val subtotal = cartItems.sumOf { (it.price + it.toppingPrice) * it.quantity }
     val shippingFee = 0
     val total = subtotal + shippingFee
-    val discount = (total * 0.1).toInt()
+    
+    // Calculate discount from promotion only
+    val discount = if (selectedPromotion != null) {
+        com.qrdatmon.customer.data.PromotionManager.calculateDiscount(total)
+    } else {
+        0
+    }
+    
     val finalTotal = total - discount
 
     Box(
@@ -93,7 +117,7 @@ fun CartScreen(
         ) {
             // Header
             CartHeader(
-                tableCode = tableCode,
+                tableDisplayName = tableDisplayName,
                 itemCount = cartItems.sumOf { it.quantity },
                 onBackClick = onBackClick
             )
@@ -106,9 +130,19 @@ fun CartScreen(
                 contentPadding = PaddingValues(bottom = Dimensions.contentBottomPaddingSimple),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Discount Banner
-                item {
-                    DiscountBanner()
+                // Discount Banner - Only show if there's a promotion
+                if (selectedPromotion != null) {
+                    item {
+                        DiscountBanner(
+                            isLoggedIn = isLoggedIn,
+                            selectedPromotion = selectedPromotion,
+                            orderAmount = total,
+                            onLoginClick = { showLoginDialog = true },
+                            onRemovePromotion = {
+                                com.qrdatmon.customer.data.PromotionManager.clearPromotion()
+                            }
+                        )
+                    }
                 }
 
                 // Cart Items Section
@@ -158,10 +192,10 @@ fun CartScreen(
                                 CartItemCard(
                                     item = item,
                                     onQuantityChange = { newQuantity ->
-                                        com.qrdatmon.customer.data.CartManager.updateQuantity(item.id, newQuantity)
+                                        com.qrdatmon.customer.data.CartManager.updateQuantity(item.cartItemId, newQuantity)
                                     },
                                     onRemove = {
-                                        com.qrdatmon.customer.data.CartManager.removeItem(item.id)
+                                        com.qrdatmon.customer.data.CartManager.removeItem(item.cartItemId)
                                     }
                                 )
                             }
@@ -211,7 +245,7 @@ fun CartScreen(
                             color = Color.White
                         )
                         Text(
-                            text = "Bàn $tableCode • ${cartItems.sumOf { it.quantity }} món",
+                            text = "$tableDisplayName • ${cartItems.sumOf { it.quantity }} món",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color.White,
@@ -242,11 +276,22 @@ fun CartScreen(
             onOrderStatusClick = onNavigateToOrderStatus
         )
     }
+    
+    // Show login dialog when needed
+    if (showLoginDialog) {
+        com.qrdatmon.customer.ui.promo.RequireLoginDialog(
+            onDismiss = { showLoginDialog = false },
+            onLoginClick = {
+                showLoginDialog = false
+                onNavigateToLogin()
+            }
+        )
+    }
 }
 
 @Composable
 private fun CartHeader(
-    tableCode: String,
+    tableDisplayName: String,
     itemCount: Int,
     onBackClick: () -> Unit
 ) {
@@ -268,7 +313,7 @@ private fun CartHeader(
                 color = Color(0xFF222222)
             )
             Text(
-                text = "Bàn $tableCode • $itemCount món trong giỏ",
+                text = "$tableDisplayName • $itemCount món trong giỏ",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
                 color = Color(0xFF666666)
@@ -294,45 +339,143 @@ private fun CartHeader(
 }
 
 @Composable
-private fun DiscountBanner() {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color(0x0FFF6F3C), RoundedCornerShape(16.dp))
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.Top
-    ) {
-        Box(
-            modifier = Modifier
-                .size(18.dp)
-                .background(Color(0xFFFF6F3C), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "%",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color.White
-            )
+private fun DiscountBanner(
+    isLoggedIn: Boolean,
+    selectedPromotion: com.qrdatmon.core.network.dto.promotion.PromotionResponse?,
+    orderAmount: Int,
+    onLoginClick: () -> Unit,
+    onRemovePromotion: () -> Unit
+) {
+    // If promotion is applied
+    if (selectedPromotion != null) {
+        val isApplicable = orderAmount >= selectedPromotion.minOrderAmount
+        val discountText = if (selectedPromotion.discountType == "percent") {
+            "Giảm ${selectedPromotion.discountValue.toInt()}%"
+        } else {
+            "Giảm ${(selectedPromotion.discountValue / 1000).toInt()}.000đ"
         }
-
-        Column(
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+        
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    if (isApplicable) Color(0x1A16A34A) else Color(0x1AEF4444),
+                    RoundedCornerShape(16.dp)
+                )
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.Top
         ) {
-            Text(
-                text = "Sắp đạt ưu đãi -10% cho hóa đơn",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF222222)
-            )
-            Text(
-                text = "Thêm món ăn vật hoặc đồ uống để dễ đạt mốc giảm cho toàn bộ bàn.",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Normal,
-                color = Color(0xFF666666),
-                lineHeight = 13.sp
-            )
+            Box(
+                modifier = Modifier
+                    .size(18.dp)
+                    .background(
+                        if (isApplicable) Color(0xFF16A34A) else Color(0xFFEF4444),
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (isApplicable) "✓" else "!",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = if (isApplicable) {
+                        "Đã áp dụng: $discountText"
+                    } else {
+                        "Chưa đủ điều kiện áp dụng"
+                    },
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF222222)
+                )
+                Text(
+                    text = if (isApplicable) {
+                        selectedPromotion.name
+                    } else {
+                        "Cần thêm ${((selectedPromotion.minOrderAmount - orderAmount) / 1000).toInt()}.000đ để áp dụng mã"
+                    },
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = Color(0xFF666666),
+                    lineHeight = 13.sp
+                )
+            }
+            
+            // Remove button
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .background(Color(0xFFF5F5F5), CircleShape)
+                    .clickable { onRemovePromotion() },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "×",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = Color(0xFF666666)
+                )
+            }
+        }
+    } else {
+        // No promotion applied - show login banner or default message
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0x0FFF6F3C), RoundedCornerShape(16.dp))
+                .clickable { if (!isLoggedIn) onLoginClick() }
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(18.dp)
+                    .background(Color(0xFFFF6F3C), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (isLoggedIn) "%" else "🔒",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
+            }
+
+            Column(
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = if (isLoggedIn) {
+                        "Sắp đạt ưu đãi -10% cho hóa đơn"
+                    } else {
+                        "Đăng nhập để nhận ưu đãi -10%"
+                    },
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF222222)
+                )
+                Text(
+                    text = if (isLoggedIn) {
+                        "Thêm món ăn vật hoặc đồ uống để dễ đạt mốc giảm cho toàn bộ bàn."
+                    } else {
+                        "Nhấn vào đây để đăng nhập và tận hưởng ưu đãi"
+                    },
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = Color(0xFF666666),
+                    lineHeight = 13.sp
+                )
+            }
         }
     }
 }
@@ -528,6 +671,15 @@ private fun OrderSummary(
     ) {
         SummaryRow("Tạm tính", "${subtotal / 1000}.000đ")
         SummaryRow("Thuế & phí dự kiến", "${shippingFee}đ")
+        
+        // Show discount row only if there's a discount
+        if (discount > 0) {
+            SummaryRow(
+                "Giảm giá",
+                "-${discount / 1000}.000đ",
+                valueColor = Color(0xFF16A34A)
+            )
+        }
 
         Spacer(modifier = Modifier.height(2.dp))
 
@@ -552,18 +704,21 @@ private fun OrderSummary(
 
         Spacer(modifier = Modifier.height(2.dp))
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color(0x1416A34A), RoundedCornerShape(999.dp))
-                .padding(horizontal = 8.dp, vertical = 3.dp)
-        ) {
-            Text(
-                text = "Ưu đãi -10% sẽ tự áp dụng khi thanh toán đủ điều kiện",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF16A34A)
-            )
+        // Show discount info only if there's a discount
+        if (discount > 0) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0x1416A34A), RoundedCornerShape(999.dp))
+                    .padding(horizontal = 8.dp, vertical = 3.dp)
+            ) {
+                Text(
+                    text = "Đã áp dụng giảm giá ${discount / 1000}.000đ",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF16A34A)
+                )
+            }
         }
 
         Text(
@@ -576,7 +731,11 @@ private fun OrderSummary(
 }
 
 @Composable
-private fun SummaryRow(label: String, value: String) {
+private fun SummaryRow(
+    label: String,
+    value: String,
+    valueColor: Color = Color(0xFF222222)
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
@@ -591,7 +750,7 @@ private fun SummaryRow(label: String, value: String) {
             text = value,
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
-            color = Color(0xFF222222)
+            color = valueColor
         )
     }
 }

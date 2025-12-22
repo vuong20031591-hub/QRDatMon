@@ -64,6 +64,10 @@ fun MenuScreen(
 
     val uiState by viewModel.uiState.collectAsState()
     
+    // Get selected table from TableManager
+    val selectedTable by com.qrdatmon.customer.data.TableManager.selectedTable.collectAsState()
+    val tableDisplayName = selectedTable?.displayName ?: "Bàn $tableCode"
+    
     // Convert backend MenuItemResponse to UI MenuItem
     val menuItems = remember(uiState.menuItems) {
         uiState.menuItems.map { item ->
@@ -122,7 +126,7 @@ fun MenuScreen(
         ) {
             // Header
             MenuHeader(
-                tableCode = tableCode,
+                tableDisplayName = tableDisplayName,
                 cartItemCount = cartItemCount,
                 onCartClick = onCartClick
             )
@@ -135,19 +139,20 @@ fun MenuScreen(
                 contentPadding = PaddingValues(bottom = Dimensions.contentBottomPaddingSimple),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Restaurant Banner
-                item {
-                    RestaurantBanner()
-                }
+                // Restaurant Banner - Removed as requested
+                // item {
+                //     RestaurantBanner()
+                // }
 
                 // Promotions Section
-                // TODO: Add promotions back when API is ready
-                // item {
-                //     PromotionsSection(
-                //         promotions = uiState.promotions,
-                //         onViewAllClick = onViewAllPromos
-                //     )
-                // }
+                if (uiState.promotions.isNotEmpty()) {
+                    item {
+                        PromotionsSection(
+                            promotions = uiState.promotions,
+                            onViewAllClick = onViewAllPromos
+                        )
+                    }
+                }
 
                 // Category Filter
                 item {
@@ -237,7 +242,7 @@ fun MenuScreen(
 
 @Composable
 private fun MenuHeader(
-    tableCode: String,
+    tableDisplayName: String,
     cartItemCount: Int,
     onCartClick: () -> Unit
 ) {
@@ -266,7 +271,7 @@ private fun MenuHeader(
                     .padding(horizontal = 8.dp, vertical = 2.dp)
             ) {
                 Text(
-                    text = "Bàn $tableCode • 2 người",
+                    text = "$tableDisplayName • 2 người",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                     color = Color(0xFFFF6F3C)
@@ -408,6 +413,10 @@ private fun PromotionsSection(
     onViewAllClick: () -> Unit = {}
 ) {
     if (promotions.isEmpty()) return
+    
+    var showAllPromotions by remember { mutableStateOf(false) }
+    val selectedPromotion by com.qrdatmon.customer.data.PromotionManager.selectedPromotion.collectAsState()
+    
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -425,13 +434,17 @@ private fun PromotionsSection(
                 fontWeight = FontWeight.Medium,
                 color = Color(0xFF222222)
             )
-            Text(
-                text = "Xem tất cả",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFFFF6F3C),
-                modifier = Modifier.clickable { onViewAllClick() }
-            )
+            
+            // Only show "Xem tất cả" if there are 2 or more promotions
+            if (promotions.size >= 2) {
+                Text(
+                    text = "Xem tất cả",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFFFF6F3C),
+                    modifier = Modifier.clickable { showAllPromotions = true }
+                )
+            }
         }
 
         LazyRow(
@@ -439,7 +452,9 @@ private fun PromotionsSection(
         ) {
             items(promotions.size) { index ->
                 val promotion = promotions[index]
-                val discountText = if (promotion.discountType == "percentage") {
+                val isSelected = selectedPromotion?.id == promotion.id
+                
+                val discountText = if (promotion.discountType == "percent") {
                     "Giảm ${promotion.discountValue.toInt()}%"
                 } else {
                     "Giảm ${(promotion.discountValue / 1000).toInt()}.000đ"
@@ -452,14 +467,33 @@ private fun PromotionsSection(
                 }
                 
                 PromotionCard(
-                    icon = if (index % 2 == 0) "🎫" else "🎁",
+                    icon = "🎫",
                     title = "$discountText$minOrderText",
                     description = promotion.description ?: promotion.name,
-                    actionText = "Tự động áp dụng khi thanh toán",
-                    backgroundColor = if (index % 2 == 0) Color(0xFFFFF5F0) else Color(0xFFF0FFF4)
+                    isSelected = isSelected,
+                    onApplyClick = {
+                        if (isSelected) {
+                            com.qrdatmon.customer.data.PromotionManager.clearPromotion()
+                        } else {
+                            com.qrdatmon.customer.data.PromotionManager.selectPromotion(promotion)
+                        }
+                    }
                 )
             }
         }
+    }
+    
+    // Show all promotions dialog
+    if (showAllPromotions) {
+        AllPromotionsDialog(
+            promotions = promotions,
+            selectedPromotion = selectedPromotion,
+            onDismiss = { showAllPromotions = false },
+            onPromotionSelected = { promotion ->
+                com.qrdatmon.customer.data.PromotionManager.selectPromotion(promotion)
+                showAllPromotions = false
+            }
+        )
     }
 }
 
@@ -468,13 +502,21 @@ private fun PromotionCard(
     icon: String,
     title: String,
     description: String,
-    actionText: String,
-    backgroundColor: Color
+    isSelected: Boolean,
+    onApplyClick: () -> Unit
 ) {
     Box(
         modifier = Modifier
             .width(280.dp)
-            .background(backgroundColor, RoundedCornerShape(16.dp))
+            .background(
+                if (isSelected) Color(0xFFFFE4D6) else Color(0xFFFFF5F0),
+                RoundedCornerShape(16.dp)
+            )
+            .border(
+                width = if (isSelected) 2.dp else 0.dp,
+                color = if (isSelected) Color(0xFFFF6F3C) else Color.Transparent,
+                shape = RoundedCornerShape(16.dp)
+            )
             .padding(16.dp)
     ) {
         Row(
@@ -511,18 +553,26 @@ private fun PromotionCard(
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Normal,
                     color = Color(0xFF666666),
-                    lineHeight = 16.sp
+                    lineHeight = 16.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
+                
+                // Apply button
                 Box(
                     modifier = Modifier
-                        .background(Color(0x1AFF6F3C), RoundedCornerShape(999.dp))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .background(
+                            if (isSelected) Color(0xFFFF6F3C) else Color(0x1AFF6F3C),
+                            RoundedCornerShape(999.dp)
+                        )
+                        .clickable { onApplyClick() }
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     Text(
-                        text = actionText,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFFFF6F3C)
+                        text = if (isSelected) "✓ Đã áp dụng" else "Áp dụng",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isSelected) Color.White else Color(0xFFFF6F3C)
                     )
                 }
             }
@@ -660,26 +710,14 @@ private fun MenuItemsSection(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 2.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Món ăn hôm nay",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF222222)
-            )
-            Text(
-                text = "Chọn vị món ăn có bữa ăn trọn vẹn",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Normal,
-                color = Color(0xFF666666)
-            )
-        }
+        // Header - removed "Xem tất cả"
+        Text(
+            text = "Món ăn hôm nay",
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color(0xFF222222),
+            modifier = Modifier.padding(horizontal = 2.dp)
+        )
 
         // Grid of menu items
         Column(
@@ -910,6 +948,145 @@ private fun BottomOrderBar(
                 fontWeight = FontWeight.Medium,
                 color = Color.White
             )
+        }
+    }
+}
+
+@Composable
+private fun AllPromotionsDialog(
+    promotions: List<com.qrdatmon.core.network.dto.promotion.PromotionResponse>,
+    selectedPromotion: com.qrdatmon.core.network.dto.promotion.PromotionResponse?,
+    onDismiss: () -> Unit,
+    onPromotionSelected: (com.qrdatmon.core.network.dto.promotion.PromotionResponse) -> Unit
+) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight(),
+            shape = RoundedCornerShape(20.dp),
+            color = Color.White
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Tất cả ưu đãi",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF222222)
+                    )
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = "Close",
+                            tint = Color(0xFF666666)
+                        )
+                    }
+                }
+
+                // Promotions list
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 400.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(promotions.size) { index ->
+                        val promotion = promotions[index]
+                        val isSelected = selectedPromotion?.id == promotion.id
+                        
+                        val discountText = if (promotion.discountType == "percent") {
+                            "Giảm ${promotion.discountValue.toInt()}%"
+                        } else {
+                            "Giảm ${(promotion.discountValue / 1000).toInt()}.000đ"
+                        }
+                        
+                        val minOrderText = if (promotion.minOrderAmount > 0) {
+                            " cho hóa đơn từ ${(promotion.minOrderAmount / 1000).toInt()}.000đ"
+                        } else {
+                            ""
+                        }
+                        
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    if (isSelected) Color(0xFFFFE4D6) else Color(0xFFF5F5F5),
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .border(
+                                    width = if (isSelected) 2.dp else 0.dp,
+                                    color = if (isSelected) Color(0xFFFF6F3C) else Color.Transparent,
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .clickable { onPromotionSelected(promotion) }
+                                .padding(12.dp)
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Icon
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .background(Color.White, RoundedCornerShape(10.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "🎫",
+                                        fontSize = 20.sp
+                                    )
+                                }
+
+                                // Content
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = "$discountText$minOrderText",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF222222)
+                                    )
+                                    Text(
+                                        text = promotion.description ?: promotion.name,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Normal,
+                                        color = Color(0xFF666666),
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+
+                                // Checkmark
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.CheckCircle,
+                                        contentDescription = "Selected",
+                                        tint = Color(0xFFFF6F3C),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

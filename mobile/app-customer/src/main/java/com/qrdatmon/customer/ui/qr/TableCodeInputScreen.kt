@@ -91,6 +91,15 @@ fun TableCodeInputScreen(
                 Button(
                     onClick = { 
                         if (isCodeValid && selectedTable != null) {
+                            // Save table info to TableManager
+                            com.qrdatmon.customer.data.TableManager.setTable(
+                                com.qrdatmon.customer.data.SelectedTable(
+                                    id = selectedTable!!.id,
+                                    tableNumber = selectedTable!!.tableNumber,
+                                    areaName = selectedTable!!.areaName,
+                                    displayName = selectedTable!!.displayName
+                                )
+                            )
                             onConfirmClick(selectedTable!!.id)
                         }
                     },
