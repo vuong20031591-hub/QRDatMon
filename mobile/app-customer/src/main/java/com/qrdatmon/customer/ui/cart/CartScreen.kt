@@ -51,12 +51,18 @@ fun CartScreen(
     onCheckoutClick: () -> Unit,
     onNavigateToMenu: () -> Unit,
     onNavigateToOrderStatus: () -> Unit,
-    onNavigateToLogin: () -> Unit = {}
+    onNavigateToLogin: () -> Unit = {},
+    viewModel: CartViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     val cartItems by com.qrdatmon.customer.data.CartManager.cartItems.collectAsState()
     val selectedTable by com.qrdatmon.customer.data.TableManager.selectedTable.collectAsState()
     val selectedPromotion by com.qrdatmon.customer.data.PromotionManager.selectedPromotion.collectAsState()
+    val currentOrder by com.qrdatmon.customer.data.OrderManager.currentOrder.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
+    
+    // ViewModel states
+    val isCreatingOrder by viewModel.isCreatingOrder.collectAsState()
+    val orderResult by viewModel.orderResult.collectAsState()
     
     // Get AuthManager to check login state
     val authManager = remember { 
@@ -69,6 +75,7 @@ fun CartScreen(
     
     // Get table display name or fallback to tableCode
     val tableDisplayName = selectedTable?.displayName ?: "Bàn $tableCode"
+    val tableId = selectedTable?.id ?: tableCode
 
     val subtotal = cartItems.sumOf { (it.price + it.toppingPrice) * it.quantity }
     val shippingFee = 0
@@ -82,6 +89,63 @@ fun CartScreen(
     }
     
     val finalTotal = total - discount
+    
+    // Handle order result
+    LaunchedEffect(orderResult) {
+        orderResult?.let { result ->
+            result.onSuccess { orderResponse ->
+                // Convert OrderResponse to OrderInfo and save to OrderManager
+                val orderInfo = com.qrdatmon.customer.data.OrderInfo(
+                    orderId = orderResponse.id,
+                    orderNumber = orderResponse.orderNumber,
+                    tableId = tableId,
+                    tableDisplayName = tableDisplayName,
+                    items = cartItems, // Use local cart items
+                    subtotal = subtotal,
+                    discount = discount,
+                    total = finalTotal,
+                    orderTime = java.text.SimpleDateFormat("HH:mm, dd/MM/yyyy", java.util.Locale.getDefault()).format(java.util.Date()),
+                    status = when (orderResponse.status) {
+                        "pending" -> com.qrdatmon.customer.data.OrderStatus.PREPARING
+                        "confirmed" -> com.qrdatmon.customer.data.OrderStatus.PREPARING
+                        "preparing" -> com.qrdatmon.customer.data.OrderStatus.PREPARING
+                        "ready" -> com.qrdatmon.customer.data.OrderStatus.READY
+                        "served" -> com.qrdatmon.customer.data.OrderStatus.SERVING
+                        "completed" -> com.qrdatmon.customer.data.OrderStatus.COMPLETED
+                        else -> com.qrdatmon.customer.data.OrderStatus.PREPARING
+                    }
+                )
+                
+                // Check if there's already an order
+                if (currentOrder != null) {
+                    // Add items to existing order
+                    com.qrdatmon.customer.data.OrderManager.addItemsToCurrentOrder(
+                        newItems = cartItems,
+                        additionalSubtotal = subtotal,
+                        additionalDiscount = discount,
+                        additionalTotal = finalTotal
+                    )
+                } else {
+                    // Save new order
+                    com.qrdatmon.customer.data.OrderManager.setOrder(orderInfo)
+                }
+                
+                // Clear cart after successful order
+                com.qrdatmon.customer.data.CartManager.clearCart()
+                
+                // Reset order result
+                viewModel.resetOrderResult()
+                
+                // Navigate to order status
+                onCheckoutClick()
+            }
+            result.onFailure { error ->
+                // Show error (you can add a Snackbar or Toast here)
+                android.util.Log.e("CartScreen", "Failed to create order: ${error.message}")
+                viewModel.resetOrderResult()
+            }
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -225,32 +289,48 @@ fun CartScreen(
 
                 // Checkout Button
                 Button(
-                    onClick = onCheckoutClick,
+                    onClick = {
+                        // Call ViewModel to create order
+                        viewModel.createOrder(
+                            cartItems = cartItems,
+                            tableId = tableId,
+                            note = null
+                        )
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),
                     shape = RoundedCornerShape(24.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFFFF6F3C)
-                    )
+                    ),
+                    enabled = cartItems.isNotEmpty() && !isCreatingOrder
                 ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Gửi order đến quán",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "$tableDisplayName • ${cartItems.sumOf { it.quantity }} món",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
+                    if (isCreatingOrder) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
                             color = Color.White,
-                            modifier = Modifier.alpha(0.9f)
+                            strokeWidth = 2.dp
                         )
+                    } else {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Gửi order đến quán",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "$tableDisplayName • ${cartItems.sumOf { it.quantity }} món",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color.White,
+                                modifier = Modifier.alpha(0.9f)
+                            )
+                        }
                     }
                 }
 

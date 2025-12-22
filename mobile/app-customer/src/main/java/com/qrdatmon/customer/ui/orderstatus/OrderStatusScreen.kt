@@ -51,6 +51,12 @@ fun OrderStatusScreen(
     onNavigateToPayment: () -> Unit = {},
     onCallStaff: () -> Unit = {}
 ) {
+    // Get current order from OrderManager
+    val currentOrder by com.qrdatmon.customer.data.OrderManager.currentOrder.collectAsState()
+    val selectedTable by com.qrdatmon.customer.data.TableManager.selectedTable.collectAsState()
+    
+    val tableDisplayName = selectedTable?.displayName ?: "Bàn $tableCode"
+    
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -85,7 +91,9 @@ fun OrderStatusScreen(
         ) {
             // Header
             OrderStatusHeader(
-                tableCode = tableCode,
+                tableDisplayName = tableDisplayName,
+                orderNumber = currentOrder?.orderNumber ?: "#0000",
+                status = currentOrder?.status ?: com.qrdatmon.customer.data.OrderStatus.PREPARING,
                 onBackClick = onBackClick
             )
 
@@ -97,37 +105,51 @@ fun OrderStatusScreen(
                 contentPadding = PaddingValues(bottom = Dimensions.contentBottomPaddingSimple),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Order Card
-                item {
-                    ActiveOrderCard(tableCode = tableCode)
-                }
+                // Show content only if there's an order
+                val order = currentOrder
+                if (order != null) {
+                    // Order Card
+                    item {
+                        ActiveOrderCard(
+                            orderNumber = order.orderNumber,
+                            tableDisplayName = tableDisplayName,
+                            status = order.status,
+                            onNavigateToMenu = onNavigateToMenu
+                        )
+                    }
 
-                // Stats Cards
-                item {
-                    StatsCardsRow()
-                }
+                    // Stats Cards
+                    item {
+                        StatsCardsRow(
+                            orderTime = order.orderTime,
+                            tableDisplayName = tableDisplayName,
+                            total = order.total,
+                            itemCount = order.items.sumOf { it.quantity }
+                        )
+                    }
 
-                // Order Info
-                item {
-                    OrderInfoSection()
-                }
+                    // Order Items
+                    item {
+                        OrderItemsSection(items = order.items)
+                    }
 
-                // Timeline
-                item {
-                    OrderTimeline()
-                }
+                    // Timeline
+                    item {
+                        OrderTimeline()
+                    }
 
-                // Suggested Items
-                item {
-                    SuggestedItemsSection()
-                }
-
-                // Bottom Buttons
-                item {
-                    BottomButtonsSection(
-                        onNavigateToPayment = onNavigateToPayment,
-                        onCallStaff = onCallStaff
-                    )
+                    // Bottom Buttons
+                    item {
+                        BottomButtonsSection(
+                            onNavigateToPayment = onNavigateToPayment,
+                            onCallStaff = onCallStaff
+                        )
+                    }
+                } else {
+                    // Empty state when no order
+                    item {
+                        EmptyOrderState(onNavigateToMenu = onNavigateToMenu)
+                    }
                 }
 
                 // Help Banner
@@ -155,9 +177,18 @@ fun OrderStatusScreen(
 
 @Composable
 private fun OrderStatusHeader(
-    tableCode: String,
+    tableDisplayName: String,
+    orderNumber: String,
+    status: com.qrdatmon.customer.data.OrderStatus,
     onBackClick: () -> Unit
 ) {
+    val statusText = when (status) {
+        com.qrdatmon.customer.data.OrderStatus.PREPARING -> "Order đang chuẩn bị"
+        com.qrdatmon.customer.data.OrderStatus.READY -> "Order đã sẵn sàng"
+        com.qrdatmon.customer.data.OrderStatus.SERVING -> "Đang phục vụ"
+        com.qrdatmon.customer.data.OrderStatus.COMPLETED -> "Hoàn thành"
+    }
+    
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -176,7 +207,7 @@ private fun OrderStatusHeader(
                 color = Color(0xFF222222)
             )
             Text(
-                text = "Bàn $tableCode • Order đang chuẩn bị",
+                text = "$tableDisplayName • $statusText",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
                 color = Color(0xFF666666)
@@ -217,7 +248,23 @@ private fun OrderStatusHeader(
 }
 
 @Composable
-private fun ActiveOrderCard(tableCode: String) {
+private fun ActiveOrderCard(
+    orderNumber: String,
+    tableDisplayName: String,
+    status: com.qrdatmon.customer.data.OrderStatus,
+    onNavigateToMenu: () -> Unit
+) {
+    val (title, description) = when (status) {
+        com.qrdatmon.customer.data.OrderStatus.PREPARING -> 
+            "Món của bạn đang được chuẩn bị" to "Bếp đang nấu nóng hổi, món sẽ được mang ra bàn trong 1 chút nữa"
+        com.qrdatmon.customer.data.OrderStatus.READY -> 
+            "Món đã sẵn sàng" to "Nhân viên sẽ mang món ra bàn của bạn ngay"
+        com.qrdatmon.customer.data.OrderStatus.SERVING -> 
+            "Đang phục vụ" to "Món ăn đã được mang ra bàn, chúc bạn ngon miệng"
+        com.qrdatmon.customer.data.OrderStatus.COMPLETED -> 
+            "Hoàn thành" to "Cảm ơn bạn đã sử dụng dịch vụ"
+    }
+    
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -262,7 +309,7 @@ private fun ActiveOrderCard(tableCode: String) {
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = "Món của bạn đang được chuẩn bị",
+                    text = title,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color.White,
@@ -270,7 +317,7 @@ private fun ActiveOrderCard(tableCode: String) {
                     maxLines = 2
                 )
                 Text(
-                    text = "Bếp đang nấu nóng hổi, món sẽ được mang ra bàn trong 1 chút nữa",
+                    text = description,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                     color = Color(0xE6FFFFFF),
@@ -280,20 +327,15 @@ private fun ActiveOrderCard(tableCode: String) {
 
                 Spacer(modifier = Modifier.height(2.dp))
 
-                // Tags
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                // Tags - removed "Hãy thưởng thức đồ uống trước"
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        TagChip("Order #248")
-                        TagChip("Bàn $tableCode")
-                    }
-                    TagChip("Hãy thưởng thức đồ uống trước")
+                    TagChip("Order $orderNumber")
+                    TagChip(tableDisplayName)
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 // Action Button
                 Box(
@@ -301,18 +343,15 @@ private fun ActiveOrderCard(tableCode: String) {
                         .fillMaxWidth()
                         .height(36.dp)
                         .background(Color.White, RoundedCornerShape(999.dp))
-                        .clickable { /* TODO */ }
+                        .clickable { onNavigateToMenu() }
                         .padding(horizontal = 10.dp, vertical = 4.dp),
-                    contentAlignment = Alignment.CenterStart
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Nhấn để xem chi tiết order và thêm món",
-                        fontSize = 11.sp,
+                        text = "Thêm món",
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFFFF6F3C),
-                        lineHeight = 13.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        color = Color(0xFFFF6F3C)
                     )
                 }
             }
@@ -338,20 +377,25 @@ private fun TagChip(text: String) {
 }
 
 @Composable
-private fun StatsCardsRow() {
+private fun StatsCardsRow(
+    orderTime: String,
+    tableDisplayName: String,
+    total: Int,
+    itemCount: Int
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         StatsCard(
             label = "Thời gian đặt",
-            value = "12:34, 01/01/2025",
+            value = orderTime.ifEmpty { "Chưa có" },
             subtitle = "Gửi order thành công",
             modifier = Modifier.weight(1f)
         )
         StatsCard(
             label = "Bàn của bạn",
-            value = "A12",
+            value = tableDisplayName,
             subtitle = "Thành viên sau bữa ăn",
             modifier = Modifier.weight(1f)
         )
@@ -363,8 +407,8 @@ private fun StatsCardsRow() {
     ) {
         StatsCard(
             label = "Tổng tạm tính",
-            value = "429.000đ",
-            subtitle = "Đã bao gồm 1 món ăn",
+            value = "${total / 1000}.000đ",
+            subtitle = "Đã bao gồm $itemCount món",
             isHighlight = true,
             modifier = Modifier.weight(1f)
         )
@@ -435,6 +479,81 @@ private fun StatsCard(
 }
 
 @Composable
+private fun OrderItemsSection(items: List<com.qrdatmon.customer.ui.cart.CartItem>) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White, RoundedCornerShape(16.dp))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Món trong order",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF222222)
+            )
+            Text(
+                text = "${items.size} món • ${items.sumOf { it.quantity }} phần",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF666666)
+            )
+        }
+        
+        items.forEach { item ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${item.quantity}x",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFFFF6F3C)
+                    )
+                    Column {
+                        Text(
+                            text = item.name,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF222222)
+                        )
+                        if (item.note != null) {
+                            Text(
+                                text = item.note,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Normal,
+                                color = Color(0xFF666666)
+                            )
+                        }
+                    }
+                }
+                Text(
+                    text = "${(item.price * item.quantity) / 1000}.000đ",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF222222)
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun OrderInfoSection() {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -485,55 +604,40 @@ private fun OrderTimeline() {
                 color = Color(0xFF222222)
             )
 
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 4.dp)
+                    .padding(start = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // Vertical line
-                Box(
-                    modifier = Modifier
-                        .width(2.dp)
-                        .height(156.dp)
-                        .offset(x = 11.dp)
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    Color(0xB3FF6F3C),
-                                    Color(0x1AFF6F3C)
-                                )
-                            )
-                        )
+                TimelineItem(
+                    title = "Đã gửi / Chuẩn bị món",
+                    description = "Quán đã nhận được order của bạn",
+                    isCompleted = true,
+                    isActive = false,
+                    showLine = true
                 )
-
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    TimelineItem(
-                        title = "Đã gửi / Chuẩn bị món",
-                        description = "Quán đã nhận được order của bạn",
-                        isCompleted = true,
-                        isActive = false
-                    )
-                    TimelineItem(
-                        title = "Đang chuẩn bị",
-                        description = "Bếp đang nấu món • Dự tính 10-15 phút",
-                        isCompleted = false,
-                        isActive = true
-                    )
-                    TimelineItem(
-                        title = "Đã xong",
-                        description = "Hoàn thành & chuẩn bị mang ra",
-                        isCompleted = false,
-                        isActive = false
-                    )
-                    TimelineItem(
-                        title = "Đang phục vụ",
-                        description = "Nhân viên mang món đến bàn bạn",
-                        isCompleted = false,
-                        isActive = false
-                    )
-                }
+                TimelineItem(
+                    title = "Đang chuẩn bị",
+                    description = "Bếp đang nấu món • Dự tính 10-15 phút",
+                    isCompleted = false,
+                    isActive = true,
+                    showLine = true
+                )
+                TimelineItem(
+                    title = "Đã xong",
+                    description = "Hoàn thành & chuẩn bị mang ra",
+                    isCompleted = false,
+                    isActive = false,
+                    showLine = true
+                )
+                TimelineItem(
+                    title = "Đang phục vụ",
+                    description = "Nhân viên mang món đến bàn bạn",
+                    isCompleted = false,
+                    isActive = false,
+                    showLine = false
+                )
             }
         }
     }
@@ -544,7 +648,8 @@ private fun TimelineItem(
     title: String,
     description: String,
     isCompleted: Boolean,
-    isActive: Boolean
+    isActive: Boolean,
+    showLine: Boolean = true
 ) {
     Row(
         modifier = Modifier
@@ -554,27 +659,44 @@ private fun TimelineItem(
     ) {
         Box(
             modifier = Modifier
-                .size(22.dp)
-                .padding(top = 4.dp),
+                .width(22.dp),
             contentAlignment = Alignment.TopCenter
         ) {
-            Box(
-                modifier = Modifier
-                    .size(14.dp)
-                    .background(
-                        color = if (isCompleted || isActive) Color(0xFFFF6F3C) else Color.White,
-                        shape = CircleShape
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .padding(top = 4.dp)
+                        .size(14.dp)
+                        .background(
+                            color = if (isCompleted || isActive) Color(0xFFFF6F3C) else Color.White,
+                            shape = CircleShape
+                        )
+                        .border(
+                            width = 2.dp,
+                            color = if (isCompleted || isActive) Color(0xFFFF6F3C) else Color(0xFFE0E0E0),
+                            shape = CircleShape
+                        )
+                )
+                
+                // Vertical line connecting to next item
+                if (showLine) {
+                    Box(
+                        modifier = Modifier
+                            .width(2.dp)
+                            .height(40.dp)
+                            .background(
+                                color = if (isCompleted) Color(0xB3FF6F3C) else Color(0x1AFF6F3C)
+                            )
                     )
-                    .border(
-                        width = 2.dp,
-                        color = if (isCompleted || isActive) Color(0xFFFF6F3C) else Color(0xFFE0E0E0),
-                        shape = CircleShape
-                    )
-            )
+                }
+            }
         }
 
         Column(
-            verticalArrangement = Arrangement.spacedBy(1.dp)
+            verticalArrangement = Arrangement.spacedBy(1.dp),
+            modifier = Modifier.padding(top = 4.dp)
         ) {
             Text(
                 text = title,
@@ -830,6 +952,83 @@ private fun HelpBanner() {
                 color = Color.White,
                 lineHeight = 13.sp
             )
+        }
+    }
+}
+
+
+@Composable
+private fun EmptyOrderState(onNavigateToMenu: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 60.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Icon
+        Box(
+            modifier = Modifier
+                .size(120.dp)
+                .background(Color(0xFFFFF5F0), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Restaurant,
+                contentDescription = null,
+                modifier = Modifier.size(60.dp),
+                tint = Color(0xFFFF6F3C)
+            )
+        }
+
+        // Text
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Chưa có order nào",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF222222)
+            )
+            Text(
+                text = "Hãy chọn món và gửi order để theo dõi trạng thái",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Normal,
+                color = Color(0xFF666666),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Button
+        Button(
+            onClick = onNavigateToMenu,
+            modifier = Modifier
+                .fillMaxWidth(0.7f)
+                .height(48.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFFFF6F3C)
+            )
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Restaurant,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+                Text(
+                    text = "Xem menu",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
     }
 }
