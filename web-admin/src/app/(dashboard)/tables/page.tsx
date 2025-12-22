@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Plus, MapPin, Pencil, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -23,6 +23,7 @@ const statusCounts = (tables: Table[]) => ({
 })
 
 export default function TablesPage() {
+  const [mounted, setMounted] = useState(false)
   const { tables, loading, createTable, updateTable, deleteTable, updateStatus, generateQR } = useTables()
   const { areas, createArea, updateArea, deleteArea } = useAreas()
   
@@ -38,6 +39,10 @@ export default function TablesPage() {
   const [filterArea, setFilterArea] = useState<string>("all")
   const [filterStatus, setFilterStatus] = useState<string>("all")
   const [formLoading, setFormLoading] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const filteredTables = tables.filter(table => {
     const areaMatch = filterArea === "all" || (typeof table.area === "string" ? table.area : table.area?.id) === filterArea
@@ -100,6 +105,10 @@ export default function TablesPage() {
 
   const handleRegenerateQR = async (table: Table) => {
     await generateQR(table.id, true)
+  }
+
+  if (!mounted) {
+    return null
   }
 
   return (

@@ -45,6 +45,7 @@ class TableCodeInputViewModel @Inject constructor(
 
                 if (response.success && response.data != null) {
                     val tableListResponse = response.data!!
+                    // Map all tables (including status info)
                     val tables = tableListResponse.tables.map { tableDto ->
                         TableItem(
                             id = tableDto.getTableId(),
@@ -54,9 +55,12 @@ class TableCodeInputViewModel @Inject constructor(
                             status = tableDto.status
                         )
                     }
+                    // Filter to show only available tables
+                    val availableTables = tables.filter { it.status == "available" }
+                    
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        tables = tables,
+                        tables = availableTables,
                         errorMessage = ""
                     )
                 } else {
@@ -76,5 +80,20 @@ class TableCodeInputViewModel @Inject constructor(
 
     fun retryLoadTables() {
         loadTables()
+    }
+    
+    /**
+     * Validate table status before selection
+     * Returns error message if table is not available, null if OK
+     */
+    fun validateTableStatus(status: String): String? {
+        return when (status) {
+            "available" -> null
+            "occupied" -> "Bàn này đang được sử dụng. Vui lòng chọn bàn khác."
+            "reserved" -> "Bàn này đã được đặt trước. Vui lòng chọn bàn khác."
+            "cleaning" -> "Bàn này đang được dọn dẹp. Vui lòng chọn bàn khác."
+            "inactive" -> "Bàn này hiện không hoạt động. Vui lòng chọn bàn khác."
+            else -> "Bàn này không khả dụng. Vui lòng chọn bàn khác."
+        }
     }
 }
