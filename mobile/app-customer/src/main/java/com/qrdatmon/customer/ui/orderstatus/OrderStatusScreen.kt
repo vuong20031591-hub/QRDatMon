@@ -49,11 +49,19 @@ fun OrderStatusScreen(
     onNavigateToMenu: () -> Unit,
     onNavigateToCart: () -> Unit,
     onNavigateToPayment: () -> Unit = {},
-    onCallStaff: () -> Unit = {}
+    onCallStaff: () -> Unit = {},
+    onNavigateToLogin: () -> Unit = {},
+    onProfileClick: () -> Unit = {},
+    onFavoritesClick: () -> Unit = {}
 ) {
     // Get current order from OrderManager
     val currentOrder by com.qrdatmon.customer.data.OrderManager.currentOrder.collectAsState()
     val selectedTable by com.qrdatmon.customer.data.TableManager.selectedTable.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    
+    val authManager = remember { 
+        com.qrdatmon.core.common.auth.AuthManager(context, "customer_auth_prefs")
+    }
     
     val tableDisplayName = selectedTable?.displayName ?: "Bàn $tableCode"
     
@@ -94,7 +102,9 @@ fun OrderStatusScreen(
                 tableDisplayName = tableDisplayName,
                 orderNumber = currentOrder?.orderNumber ?: "#0000",
                 status = currentOrder?.status ?: com.qrdatmon.customer.data.OrderStatus.PREPARING,
-                onBackClick = onBackClick
+                onBackClick = onBackClick,
+                onProfileClick = onProfileClick,
+                onFavoritesClick = onFavoritesClick
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -180,7 +190,9 @@ private fun OrderStatusHeader(
     tableDisplayName: String,
     orderNumber: String,
     status: com.qrdatmon.customer.data.OrderStatus,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onProfileClick: () -> Unit,
+    onFavoritesClick: () -> Unit = {}
 ) {
     val statusText = when (status) {
         com.qrdatmon.customer.data.OrderStatus.PREPARING -> "Order đang chuẩn bị"
@@ -214,36 +226,11 @@ private fun OrderStatusHeader(
             )
         }
 
-        // Notification Icon with Badge
-        Box(
-            modifier = Modifier
-                .size(32.dp)
-                .background(Color(0xFFF5F5F5), CircleShape)
-                .clickable { /* TODO */ },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Notifications,
-                contentDescription = "Notifications",
-                tint = Color(0xFF222222),
-                modifier = Modifier.size(20.dp)
-            )
-            Box(
-                modifier = Modifier
-                    .size(14.dp)
-                    .align(Alignment.TopEnd)
-                    .offset(x = 2.dp, y = (-2).dp)
-                    .background(Color(0xFFEF4444), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "3",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White
-                )
-            }
-        }
+        // More Options Button (3-dot menu)
+        com.qrdatmon.customer.ui.components.MoreOptionsButton(
+            onProfileClick = onProfileClick,
+            onFavoritesClick = onFavoritesClick
+        )
     }
 }
 

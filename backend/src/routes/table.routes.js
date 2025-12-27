@@ -8,7 +8,7 @@ const express = require('express');
 const router = express.Router();
 
 const tableController = require('../controllers/table.controller');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, optionalAuth } = require('../middleware/auth');
 const { requireStaff, requireAdmin, requireManager } = require('../middleware/roleGuard');
 const { validate, tableSchemas, Joi, commonSchemas } = require('../middleware/validator');
 
@@ -46,6 +46,34 @@ const tableValidation = {
       'any.required': 'QR token is required',
       'string.empty': 'QR token cannot be empty'
     })
+  }),
+
+  // QR scanning validation schemas
+  joinByQR: Joi.object({
+    qrToken: Joi.string()
+      .length(32)
+      .pattern(/^[0-9a-f]{32}$/)
+      .required()
+      .messages({
+        'any.required': 'QR token is required',
+        'string.empty': 'QR token cannot be empty',
+        'string.length': 'QR token must be exactly 32 characters',
+        'string.pattern.base': 'QR token must be a valid hexadecimal string'
+      }),
+    confirmed: Joi.boolean().default(false)
+  }),
+
+  verifyQR: Joi.object({
+    qrToken: Joi.string()
+      .length(32)
+      .pattern(/^[0-9a-f]{32}$/)
+      .required()
+      .messages({
+        'any.required': 'QR token is required',
+        'string.empty': 'QR token cannot be empty',
+        'string.length': 'QR token must be exactly 32 characters',
+        'string.pattern.base': 'QR token must be a valid hexadecimal string'
+      })
   }),
 
   generateQR: Joi.object({
@@ -106,13 +134,38 @@ router.get(
 );
 
 /**
- * @route   POST /api/tables/join
- * @desc    Join a table by scanning QR code
+ * @route   GET /api/tables/verify-qr/:qrToken
+ * @desc    Verify QR token and get table info
+ * @access  Public
+ * Requirements: 6.2
+ */
+router.get(
+  '/verify-qr/:qrToken',
+  validate(tableValidation.verifyQR, 'params'),
+  tableController.verifyQRToken
+);
+
+/**
+ * @route   POST /api/tables/join-by-qr
+ * @desc    Join a table by QR token with hybrid mode support
  * @access  Authenticated users
+ * Requirements: 6.1
+ */
+router.post(
+  '/join-by-qr',
+  authenticate,
+  validate(tableValidation.joinByQR),
+  tableController.joinTableByQR
+);
+
+/**
+ * @route   POST /api/tables/join
+ * @desc    Join a table by scanning QR code (legacy)
+ * @access  Public (guests can join without login)
  */
 router.post(
   '/join',
-  authenticate,
+  optionalAuth,
   validate(tableValidation.joinTable),
   tableController.joinTable
 );
@@ -274,6 +327,20 @@ router.post(
   authenticate,
   validate(Joi.object({ id: commonSchemas.objectId.required() }), 'params'),
   tableController.transferToTable
+);
+
+/**
+ * @route   POST /api/tables/:id/transfer-bill
+ * @desc    Transfer bill from current table to another table (Staff only)
+ * @access  Staff only
+ */
+router.post(
+  '/:id/transfer-bill',
+  authenticate,
+  requireStaff,
+  validate(Joi.object({ id: commonSchemas.objectId.required() }), 'params'),
+  validate(Joi.object({ targetTableId: commonSchemas.objectId.required() })),
+  tableController.transferBillBetweenTables
 );
 
 module.exports = router;

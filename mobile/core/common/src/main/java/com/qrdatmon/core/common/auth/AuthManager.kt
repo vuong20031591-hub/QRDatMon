@@ -87,6 +87,16 @@ class AuthManager(context: Context, prefsName: String = "auth_prefs") {
     
     // Customer-specific getters
     fun getPhoneNumber(): String? = prefs.getString(KEY_PHONE_NUMBER, null)
+    fun getUserPhone(): String? = getPhoneNumber() // Alias for consistency
+    
+    // Update methods
+    fun saveUserName(name: String) {
+        prefs.edit().putString(KEY_USER_NAME, name).apply()
+    }
+    
+    fun saveUserPhone(phone: String) {
+        prefs.edit().putString(KEY_PHONE_NUMBER, phone).apply()
+    }
     
     // Type checks
     fun isStaff(): Boolean = getUserType() == USER_TYPE_STAFF

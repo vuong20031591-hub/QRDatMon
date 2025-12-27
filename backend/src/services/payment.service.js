@@ -201,10 +201,18 @@ const confirmPayment = async (data, staff) => {
     { isActive: false, leftAt: new Date() }
   );
 
-  // Update table status
-  await Table.findByIdAndUpdate(bill.table, {
-    status: TABLE_STATUS.CLEANING
-  });
+  // Update table status to cleaning
+  const table = await Table.findByIdAndUpdate(
+    bill.table,
+    { status: TABLE_STATUS.CLEANING },
+    { new: true }
+  );
+
+  // Emit table status change event
+  if (table) {
+    const { emitTableStatusChanged } = require('../socket/emitters');
+    emitTableStatusChanged(table);
+  }
 
   return getPaymentById(payment._id.toString());
 };

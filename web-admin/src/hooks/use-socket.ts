@@ -20,31 +20,44 @@ export function useSocket(options: UseSocketOptions = {}) {
     const socket = getSocket()
     socketRef.current = socket
 
-    const handleConnect = () => setIsConnected(true)
-    const handleDisconnect = () => setIsConnected(false)
+    const handleConnect = () => {
+      console.log("[useSocket] Socket connected, setting isConnected = true")
+      setIsConnected(true)
+    }
+    
+    const handleDisconnect = () => {
+      console.log("[useSocket] Socket disconnected, setting isConnected = false")
+      setIsConnected(false)
+    }
 
     // Check initial connection state
     if (socket.connected) {
+      console.log("[useSocket] Socket already connected on mount")
       handleConnect()
+    } else {
+      console.log("[useSocket] Socket not connected yet, waiting for connect event")
     }
 
     socket.on("connect", handleConnect)
     socket.on("disconnect", handleDisconnect)
 
-    // Join rooms
-    rooms.forEach(room => {
-      switch (room) {
-        case "staff":
-          socket.emit(SOCKET_EVENTS.JOIN_STAFF)
-          break
-        case "kitchen":
-          socket.emit(SOCKET_EVENTS.JOIN_KITCHEN)
-          break
-        case "admin":
-          socket.emit(SOCKET_EVENTS.JOIN_ADMIN)
-          break
-      }
-    })
+    // Join rooms after a short delay to ensure connection is established
+    setTimeout(() => {
+      rooms.forEach(room => {
+        console.log(`[useSocket] Joining room: ${room}`)
+        switch (room) {
+          case "staff":
+            socket.emit(SOCKET_EVENTS.JOIN_STAFF)
+            break
+          case "kitchen":
+            socket.emit(SOCKET_EVENTS.JOIN_KITCHEN)
+            break
+          case "admin":
+            socket.emit(SOCKET_EVENTS.JOIN_ADMIN)
+            break
+        }
+      })
+    }, 100)
 
     return () => {
       socket.off("connect", handleConnect)

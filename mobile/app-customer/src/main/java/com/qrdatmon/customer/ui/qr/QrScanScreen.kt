@@ -1,5 +1,9 @@
 package com.qrdatmon.customer.ui.qr
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,19 +20,99 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import timber.log.Timber
 
+/**
+ * QR Scan Screen với ML Kit integration và Deep Link support
+ * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 3.4, 7.3, 7.4
+ */
 @Composable
 fun QrScanScreen(
     onBackClick: () -> Unit,
     onManualInputClick: () -> Unit,
-    onQrScanned: (String) -> Unit
+    onQrScanned: (String) -> Unit,
+    deepLinkQrToken: String? = null,
+    viewModel: QrScanViewModel = hiltViewModel()
 ) {
-    var isConnecting by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    
+    var hasCameraPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+    
+    // Camera permission launcher
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasCameraPermission = isGranted
+        if (!isGranted) {
+            viewModel.clearError()
+            // Show error about camera permission
+            Timber.w("Camera permission denied")
+        }
+    }
+    
+    // Request camera permission on first launch
+    LaunchedEffect(Unit) {
+        if (!hasCameraPermission) {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+        // Reset state when screen opens (clear errors, dialogs, etc.)
+        // But keep sessionInfo to enable table transfer
+        viewModel.clearError()
+        viewModel.cancelConfirmation()
+        viewModel.cancelTransfer()
+    }
+    
+    // Auto-trigger join from deep link
+    // Requirements: 3.4, 7.3, 7.4
+    LaunchedEffect(deepLinkQrToken) {
+        if (deepLinkQrToken != null && deepLinkQrToken.isNotEmpty()) {
+            Timber.d("Auto-triggering join from deep link: $deepLinkQrToken")
+            viewModel.joinTable(deepLinkQrToken)
+        }
+    }
+    
+    // Handle QR code scan
+    val onQrCodeDetected: (String) -> Unit = { qrContent ->
+        Timber.d("QR Code detected: $qrContent")
+        
+        // Parse Universal Link to extract qrToken
+        val qrToken = viewModel.parseUniversalLink(qrContent)
+        
+        if (qrToken != null) {
+            // Valid QR token - handle (join or transfer)
+            viewModel.handleQrCodeDetected(qrToken)
+        } else {
+            // Invalid QR format
+            Timber.w("Invalid QR format: $qrContent")
+        }
+    }
+    
+    // Navigate to menu when join/transfer successful
+    LaunchedEffect(uiState.shouldNavigateToMenu) {
+        if (uiState.shouldNavigateToMenu && uiState.sessionInfo != null) {
+            Timber.d("Navigating to menu: ${uiState.sessionInfo!!.tableNumber}")
+            viewModel.clearNavigationFlag()  // Clear flag before navigating
+            onQrScanned(uiState.sessionInfo!!.tableNumber)
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -68,8 +152,20 @@ fun QrScanScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // QR Scanner View
-                QrScannerView(isConnecting = isConnecting)
+                // QR Scanner View with Camera
+                if (hasCameraPermission) {
+                    CameraPreviewWithScanner(
+                        onQrCodeDetected = onQrCodeDetected,
+                        isScanning = !uiState.isJoining && !uiState.needsConfirmation
+                    )
+                } else {
+                    // Show permission required message
+                    QrScannerPermissionRequired(
+                        onRequestPermission = {
+                            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                        }
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -79,9 +175,10 @@ fun QrScanScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // Connection Status
-                ConnectionStatus(isConnecting = isConnecting)
-
-                Spacer(modifier = Modifier.height(18.dp))
+                if (uiState.isJoining) {
+                    ConnectionStatus(isConnecting = true)
+                    Spacer(modifier = Modifier.height(18.dp))
+                }
 
                 // Manual Input Button
                 Button(
@@ -92,7 +189,8 @@ fun QrScanScreen(
                     shape = RoundedCornerShape(24.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFFFF6F3C)
-                    )
+                    ),
+                    enabled = !uiState.isJoining
                 ) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -132,6 +230,48 @@ fun QrScanScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp)
+            )
+        }
+        
+        // Confirmation Dialog
+        if (uiState.needsConfirmation) {
+            JoinConfirmationDialog(
+                existingUsers = uiState.existingUsers,
+                sessionAge = uiState.sessionAge,
+                onConfirm = {
+                    viewModel.confirmJoin()
+                },
+                onDismiss = {
+                    viewModel.cancelConfirmation()
+                }
+            )
+        }
+        
+        // Table Transfer Dialog
+        if (uiState.needsTransferConfirmation && uiState.sessionInfo != null) {
+            TableTransferDialog(
+                currentTableNumber = uiState.sessionInfo!!.tableNumber,
+                newTableNumber = uiState.pendingTransferTableNumber ?: "",
+                isTransferring = uiState.isTransferring,
+                onConfirm = {
+                    viewModel.confirmTransferTable()
+                },
+                onDismiss = {
+                    viewModel.cancelTransfer()
+                }
+            )
+        }
+        
+        // Error Dialog
+        if (uiState.error != null) {
+            ErrorDialog(
+                error = uiState.error!!,
+                onDismiss = {
+                    viewModel.clearError()
+                },
+                onRetry = {
+                    viewModel.clearError()
+                }
             )
         }
     }
@@ -189,19 +329,14 @@ private fun QrAppBranding() {
                 .padding(2.dp),
             contentAlignment = Alignment.Center
         ) {
-            Box(
+            Image(
+                painter = painterResource(id = com.qrdatmon.customer.R.drawable.logo),
+                contentDescription = "Logo",
                 modifier = Modifier
                     .size(28.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFFF6F3C)),
-                contentAlignment = Alignment.Center
-            ) {
-                Image(
-                    painter = painterResource(id = com.qrdatmon.customer.R.drawable.logo),
-                    contentDescription = "Logo",
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
         }
 
         // App Name and Subtitle
@@ -247,200 +382,6 @@ private fun QrScanTitle() {
 }
 
 @Composable
-private fun QrScannerView(isConnecting: Boolean) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(240.dp)
-            .background(
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        Color(0xFF111111),
-                        Color(0xFF333333)
-                    )
-                ),
-                shape = RoundedCornerShape(24.dp)
-            )
-            .padding(14.dp)
-    ) {
-        // Inner scanner area
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            Color(0xFF3D3D3D),
-                            Color(0xFF111111)
-                        )
-                    ),
-                    shape = RoundedCornerShape(20.dp)
-                )
-                .border(
-                    width = 1.dp,
-                    color = Color(0x0FFFFFFF),
-                    shape = RoundedCornerShape(20.dp)
-                )
-        ) {
-            // Top status bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(13.dp)
-                    .align(Alignment.TopCenter),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Camera status
-                Row(
-                    modifier = Modifier
-                        .background(Color(0x85000000), RoundedCornerShape(999.dp))
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(6.dp)
-                            .background(Color(0xFF22C55E), CircleShape)
-                    )
-                    Text(
-                        text = "Đang mở camera...",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFFF9FAFB)
-                    )
-                }
-
-                // Controls
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(26.dp)
-                            .background(Color(0x8C000000), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(14.dp)
-                                .border(2.dp, Color(0xD9F9FAFB), RoundedCornerShape(4.dp))
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .size(26.dp)
-                            .background(Color(0x8C000000), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .width(10.dp)
-                                .height(2.dp)
-                                .background(Color(0xFFF9FAFB), RoundedCornerShape(999.dp))
-                        )
-                    }
-                }
-            }
-
-            // Scanning frame
-            Box(
-                modifier = Modifier
-                    .size(207.dp)
-                    .align(Alignment.Center)
-                    .border(
-                        width = 1.dp,
-                        color = Color(0x42FFFFFF),
-                        shape = RoundedCornerShape(24.dp)
-                    )
-                    .padding(1.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                // Corner borders
-                // Top-left
-                Box(
-                    modifier = Modifier
-                        .size(26.dp)
-                        .align(Alignment.TopStart)
-                        .offset((-1).dp, (-1).dp)
-                        .border(
-                            width = 3.dp,
-                            color = Color.White,
-                            shape = RoundedCornerShape(topStart = 10.dp)
-                        )
-                )
-                // Top-right
-                Box(
-                    modifier = Modifier
-                        .size(26.dp)
-                        .align(Alignment.TopEnd)
-                        .offset(1.dp, (-1).dp)
-                        .border(
-                            width = 3.dp,
-                            color = Color.White,
-                            shape = RoundedCornerShape(topEnd = 10.dp)
-                        )
-                )
-                // Bottom-left
-                Box(
-                    modifier = Modifier
-                        .size(26.dp)
-                        .align(Alignment.BottomStart)
-                        .offset((-1).dp, 1.dp)
-                        .border(
-                            width = 3.dp,
-                            color = Color.White,
-                            shape = RoundedCornerShape(bottomStart = 10.dp)
-                        )
-                )
-                // Bottom-right
-                Box(
-                    modifier = Modifier
-                        .size(26.dp)
-                        .align(Alignment.BottomEnd)
-                        .offset(1.dp, 1.dp)
-                        .border(
-                            width = 3.dp,
-                            color = Color.White,
-                            shape = RoundedCornerShape(bottomEnd = 10.dp)
-                        )
-                )
-
-                // Center dot
-                Box(
-                    modifier = Modifier
-                        .size(6.dp)
-                        .background(Color(0xE6FFFFFF), CircleShape)
-                )
-            }
-
-            // Bottom instruction
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(13.dp)
-                    .align(Alignment.BottomCenter),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .background(Color(0x8C000000), RoundedCornerShape(999.dp))
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                ) {
-                    Text(
-                        text = "Đưa mã QR vào trong khung để quét",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFFE5E7EB)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun QrScanInstructions() {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -465,6 +406,74 @@ private fun QrScanInstructions() {
             color = Color(0xFF666666),
             lineHeight = 15.sp
         )
+    }
+}
+
+/**
+ * Camera permission required message
+ * Requirements: 9.5
+ */
+@Composable
+private fun QrScannerPermissionRequired(
+    onRequestPermission: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(240.dp)
+            .background(
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        Color(0xFF111111),
+                        Color(0xFF333333)
+                    )
+                ),
+                shape = RoundedCornerShape(24.dp)
+            )
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Icon(
+                painter = painterResource(id = android.R.drawable.ic_menu_camera),
+                contentDescription = "Camera",
+                tint = Color.White,
+                modifier = Modifier.size(48.dp)
+            )
+            
+            Text(
+                text = "Cần quyền truy cập camera",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White,
+                textAlign = TextAlign.Center
+            )
+            
+            Text(
+                text = "Để quét mã QR, ứng dụng cần quyền truy cập camera của bạn.",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Normal,
+                color = Color(0xFFCCCCCC),
+                textAlign = TextAlign.Center
+            )
+            
+            Button(
+                onClick = onRequestPermission,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFFF6F3C)
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    text = "Cấp quyền camera",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
     }
 }
 

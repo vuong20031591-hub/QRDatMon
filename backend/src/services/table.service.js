@@ -5,7 +5,7 @@
  */
 
 const crypto = require('crypto');
-const { Table, Area, TableSession, Bill, TableMerge } = require('../models');
+const { Table, Area, TableSession, Bill, TableMerge, Order } = require('../models');
 const {
   NotFoundError,
   ValidationError,
@@ -155,7 +155,7 @@ const getTableById = async (tableId) => {
 /**
  * Join a table using QR token
  * @param {string} qrToken - QR token from scanned code
- * @param {Object} user - User joining the table
+ * @param {Object|null} user - User joining the table (null for guest)
  * @returns {Promise<Object>} Table session info
  */
 const joinTable = async (qrToken, user) => {
@@ -170,30 +170,29 @@ const joinTable = async (qrToken, user) => {
   }
 
   // Check if table is available or occupied (can join existing session)
-  if (table.status === TABLE_STATUS.RESERVED) {
-    throw new TableOccupiedError('This table is reserved');
-  }
-
+  // Reserved tables can be joined - they will be set to occupied
   if (table.status === TABLE_STATUS.CLEANING) {
     throw new ValidationError('This table is being cleaned. Please wait.');
   }
 
-  // Check if user already has an active session at this table
-  const existingSession = await TableSession.findOne({
-    user: user._id,
-    table: table._id,
-    isActive: true
-  });
+  // Check if user already has an active session at this table (only for logged-in users)
+  if (user) {
+    const existingSession = await TableSession.findOne({
+      user: user._id,
+      table: table._id,
+      isActive: true
+    });
 
-  if (existingSession) {
-    // Return existing session
-    const bill = await Bill.findById(existingSession.bill);
-    return {
-      session: formatSession(existingSession),
-      table: formatTable(table),
-      bill: bill ? formatBill(bill) : null,
-      isNewSession: false
-    };
+    if (existingSession) {
+      // Return existing session
+      const bill = await Bill.findById(existingSession.bill);
+      return {
+        session: formatSession(existingSession),
+        table: formatTable(table),
+        bill: bill ? formatBill(bill) : null,
+        isNewSession: false
+      };
+    }
   }
 
   // Find or create bill for this table
@@ -215,40 +214,58 @@ const joinTable = async (qrToken, user) => {
       openedAt: new Date()
     });
   } else {
-    // Increment guest count
-    bill.guestCount += 1;
-    await bill.save();
+    //  FIX RACE CONDITION: Use atomic $inc instead of read-modify-write
+    bill = await Bill.findByIdAndUpdate(
+      bill._id,
+      { $inc: { guestCount: 1 } },
+      { new: true }
+    );
   }
 
-  // Create table session
-  const session = await TableSession.create({
-    user: user._id,
-    table: table._id,
-    bill: bill._id,
-    joinedAt: new Date(),
-    isActive: true
-  });
+  // Create table session (only for logged-in users)
+  let session = null;
+  if (user) {
+    session = await TableSession.create({
+      user: user._id,
+      table: table._id,
+      bill: bill._id,
+      joinedAt: new Date(),
+      isActive: true
+    });
+  }
 
-  // Update table status to occupied if it was available
-  if (table.status === TABLE_STATUS.AVAILABLE) {
+  // ALWAYS update table status to occupied when someone joins
+  // This ensures the table status reflects reality even if admin/staff manually changed it
+  const previousStatus = table.status;
+  if (table.status !== TABLE_STATUS.OCCUPIED) {
     table.status = TABLE_STATUS.OCCUPIED;
     await table.save();
-    emitTableStatusChanged(table);
+    console.log(`[JOIN TABLE] Table ${table.tableNumber} status changed from ${previousStatus} to OCCUPIED`);
+  } else {
+    console.log(`[JOIN TABLE] Table ${table.tableNumber} already OCCUPIED, guest count increased`);
   }
 
-  // Emit user joined event
-  emitUserJoinedTable({
-    tableId: table._id.toString(),
-    userId: user._id.toString(),
-    userName: user.name || user.email || 'Guest'
-  });
+  // Always emit table status changed event to update guest count and session info
+  // This ensures web admin and staff app receive real-time updates
+  console.log(`[JOIN TABLE] Emitting table status changed event for table ${table.tableNumber}`);
+  emitTableStatusChanged(table);
+
+  // Emit user joined event (only for logged-in users)
+  if (user) {
+    emitUserJoinedTable({
+      tableId: table._id.toString(),
+      userId: user._id.toString(),
+      userName: user.name || user.email || 'Guest'
+    });
+  }
 
   return {
-    session: formatSession(session),
+    session: session ? formatSession(session) : null,
     table: formatTable(table),
     bill: formatBill(bill),
     isNewSession: true,
-    isNewBill
+    isNewBill,
+    isGuest: !user
   };
 };
 
@@ -372,7 +389,16 @@ const updateTableStatus = async (tableId, status, options = {}) => {
     });
 
     if (openBill) {
-      throw new ValidationError('Cannot set table to available while there is an unpaid bill');
+      // Check if bill has any orders
+      const Order = require('../models/order.model');
+      const orderCount = await Order.countDocuments({ bill: openBill._id });
+      
+      if (orderCount > 0) {
+        throw new ValidationError('Cannot set table to available while there is an unpaid bill with orders');
+      }
+      
+      // If bill has no orders, we can delete it and set table to available
+      await Bill.findByIdAndDelete(openBill._id);
     }
 
     // End all active sessions
@@ -830,6 +856,33 @@ const transferUserToTable = async (userId, newTableId) => {
       tableId: currentSession.table.toString(),
       userId
     });
+
+    //  FIX RACE CONDITION: Use atomic findOneAndUpdate with condition
+    // Check count then update atomically to prevent race
+    const oldTableId = currentSession.table;
+    const remainingSessions = await TableSession.countDocuments({
+      table: oldTableId,
+      isActive: true
+    });
+
+    if (remainingSessions === 0) {
+      // Use findOneAndUpdate with status condition to prevent overwriting
+      // If another request already changed status, this will not update
+      const oldTable = await Table.findOneAndUpdate(
+        {
+          _id: oldTableId,
+          status: TABLE_STATUS.OCCUPIED  // Only update if still OCCUPIED
+        },
+        {
+          status: TABLE_STATUS.AVAILABLE
+        },
+        { new: true }
+      );
+      
+      if (oldTable) {
+        emitTableStatusChanged(oldTable);
+      }
+    }
   }
 
   // Get new table
@@ -889,6 +942,319 @@ const transferUserToTable = async (userId, newTableId) => {
   };
 };
 
+/**
+ * Transfer bill from one table to another (Staff only)
+ * @param {string} fromTableId - Source table ID
+ * @param {string} toTableId - Target table ID
+ * @returns {Promise<Object>} Transfer result
+ */
+const transferBillBetweenTables = async (fromTableId, toTableId) => {
+  // Get source table
+  const fromTable = await Table.findById(fromTableId);
+  if (!fromTable) {
+    throw new NotFoundError('Source table not found');
+  }
+
+  // Get target table
+  const toTable = await Table.findById(toTableId);
+  if (!toTable) {
+    throw new NotFoundError('Target table not found');
+  }
+
+  // Check if target table is available
+  if (toTable.status !== TABLE_STATUS.AVAILABLE) {
+    throw new ValidationError('Target table is not available');
+  }
+
+  // Get active bill from source table
+  const fromBill = await Bill.findOne({
+    table: fromTableId,
+    status: { $in: [BILL_STATUS.OPEN, BILL_STATUS.REQUESTING_PAYMENT] }
+  });
+
+  if (!fromBill) {
+    throw new ValidationError('No active bill found on source table');
+  }
+
+  // Update bill to point to new table
+  fromBill.table = toTableId;
+  await fromBill.save();
+
+  // Update all orders to point to new table
+  await Order.updateMany(
+    { bill: fromBill._id },
+    { $set: { table: toTableId } }
+  );
+
+  // Transfer all active sessions to new table
+  await TableSession.updateMany(
+    { table: fromTableId, isActive: true },
+    { $set: { table: toTableId, bill: fromBill._id } }
+  );
+
+  // Update source table status to available
+  fromTable.status = TABLE_STATUS.AVAILABLE;
+  fromTable.currentBillId = null;
+  await fromTable.save();
+  emitTableStatusChanged(fromTable);
+
+  // Update target table status to occupied
+  toTable.status = TABLE_STATUS.OCCUPIED;
+  toTable.currentBillId = fromBill._id;
+  await toTable.save();
+  emitTableStatusChanged(toTable);
+
+  return {
+    message: 'Bill transferred successfully',
+    fromTable: formatTable(fromTable),
+    toTable: formatTable(toTable),
+    bill: formatBill(fromBill)
+  };
+};
+
+/**
+ * Verify QR token and return table info
+ * Requirements: 6.2, 10.3
+ * @param {string} qrToken - QR token to verify
+ * @returns {Promise<Object>} Table information
+ */
+const verifyQRToken = async (qrToken) => {
+  // Find table by qrToken
+  const table = await Table.findOne({ qrToken, isActive: true })
+    .populate('area', 'name floor')
+    .lean();
+
+  if (!table) {
+    throw new NotFoundError('Invalid QR code. Table not found.');
+  }
+
+  // Return table info (không expose sensitive data)
+  return {
+    tableId: table._id.toString(),
+    tableNumber: table.tableNumber,
+    area: table.area ? {
+      id: table.area._id.toString(),
+      name: table.area.name,
+      floor: table.area.floor
+    } : null,
+    status: table.status,
+    capacity: table.capacity
+  };
+};
+
+/**
+ * Join table by QR token with hybrid mode support
+ * Requirements: 4.1, 4.2, 4.3, 4.4, 4.6, 5.1, 5.2, 5.4
+ * @param {string} qrToken - QR token from scanned code
+ * @param {string} userId - User ID joining the table
+ * @param {boolean} confirmed - Whether user confirmed joining existing session
+ * @returns {Promise<Object>} Session info or confirmation request
+ */
+const joinTableByQR = async (qrToken, userId, confirmed = false) => {
+  // 1. Find table by qrToken
+  const table = await Table.findOne({ qrToken, isActive: true })
+    .populate('area', 'name floor');
+
+  if (!table) {
+    throw new NotFoundError('Invalid QR code. Table not found.');
+  }
+
+  // Check if table is available for joining
+  if (table.status === TABLE_STATUS.CLEANING) {
+    throw new ValidationError('This table is being cleaned. Please wait.');
+  }
+
+  // 2. Check if user has active session elsewhere → auto leave
+  const userActiveSession = await TableSession.findOne({
+    user: userId,
+    isActive: true
+  }).populate('table');
+
+  if (userActiveSession && userActiveSession.table._id.toString() !== table._id.toString()) {
+    // Auto leave old session
+    userActiveSession.isActive = false;
+    userActiveSession.leftAt = new Date();
+    await userActiveSession.save();
+
+    // Emit user left event
+    emitUserLeftTable({
+      tableId: userActiveSession.table._id.toString(),
+      userId: userId.toString()
+    });
+
+    //  FIX RACE CONDITION: Use atomic findOneAndUpdate with condition
+    const oldTableId = userActiveSession.table._id;
+    const remainingSessions = await TableSession.countDocuments({
+      table: oldTableId,
+      isActive: true
+    });
+
+    if (remainingSessions === 0) {
+      // Use findOneAndUpdate with status condition to prevent overwriting
+      const oldTable = await Table.findOneAndUpdate(
+        {
+          _id: oldTableId,
+          status: TABLE_STATUS.OCCUPIED  // Only update if still OCCUPIED
+        },
+        {
+          status: TABLE_STATUS.AVAILABLE
+        },
+        { new: true }
+      );
+      
+      if (oldTable) {
+        emitTableStatusChanged(oldTable);
+      }
+    }
+  }
+
+  // 3. Check if table has active session
+  const tableActiveSessions = await TableSession.find({
+    table: table._id,
+    isActive: true
+  }).populate('user', 'name email');
+
+  // PART 2: HYBRID LOGIC - Time-based confirmation
+  if (tableActiveSessions.length > 0) {
+    // Get the oldest active session to calculate age
+    const oldestSession = tableActiveSessions.reduce((oldest, current) => {
+      return current.joinedAt < oldest.joinedAt ? current : oldest;
+    });
+
+    const sessionAgeMinutes = (Date.now() - oldestSession.joinedAt.getTime()) / (1000 * 60);
+    const SESSION_TIMEOUT_MINUTES = 30;
+
+    // Case 1: Session < 30 min - Require confirmation
+    if (sessionAgeMinutes < SESSION_TIMEOUT_MINUTES) {
+      if (!confirmed) {
+        // Return needsConfirmation response
+        return {
+          needsConfirmation: true,
+          message: 'Bàn này đã có người. Bạn có phải nhóm của bàn này không?',
+          table: formatTable(table),
+          existingUsers: tableActiveSessions.map(s => ({
+            name: s.user?.name || s.user?.email || 'Guest',
+            joinedAt: s.joinedAt
+          })),
+          sessionAge: Math.floor(sessionAgeMinutes)
+        };
+      }
+
+      // User confirmed - will join existing session in Part 3
+      // Continue to Part 3 logic below
+    } else {
+      // Case 2: Session > 30 min - Auto cleanup old sessions
+      // Close all old sessions
+      await TableSession.updateMany(
+        { table: table._id, isActive: true },
+        { 
+          isActive: false, 
+          leftAt: new Date() 
+        }
+      );
+
+      // Emit user left events for all users
+      for (const session of tableActiveSessions) {
+        emitUserLeftTable({
+          tableId: table._id.toString(),
+          userId: session.user._id.toString()
+        });
+      }
+
+      // Close old bill if exists
+      const oldBill = await Bill.findOne({
+        table: table._id,
+        status: { $in: [BILL_STATUS.OPEN, BILL_STATUS.REQUESTING_PAYMENT] }
+      });
+
+      if (oldBill) {
+        oldBill.status = BILL_STATUS.CANCELLED;
+        oldBill.cancelReason = 'Session timeout - auto closed after 30 minutes';
+        oldBill.closedAt = new Date();
+        await oldBill.save();
+      }
+
+      // Will create new session in Part 3
+      // Continue to Part 3 logic below
+    }
+  }
+
+  // Placeholder for Part 3 logic (session creation)
+  // Will be implemented in next sub-task
+  
+  // PART 3: SESSION CREATION
+  // At this point, either:
+  // - No active sessions exist (new session)
+  // - User confirmed joining existing session (collaborative ordering)
+  // - Old sessions were cleaned up (> 30 min)
+
+  //  FIX RACE CONDITION: Use findOneAndUpdate with upsert to prevent duplicate bills
+  const billNumber = generateBillNumber();
+  let bill = await Bill.findOneAndUpdate(
+    {
+      table: table._id,
+      status: { $in: [BILL_STATUS.OPEN, BILL_STATUS.REQUESTING_PAYMENT] }
+    },
+    {
+      $inc: { guestCount: 1 },
+      $setOnInsert: {
+        billNumber,
+        status: BILL_STATUS.OPEN,
+        openedAt: new Date(),
+        subtotal: 0,
+        discountAmount: 0,
+        serviceChargeAmount: 0,
+        vatAmount: 0,
+        totalAmount: 0
+      }
+    },
+    {
+      new: true,
+      upsert: true,
+      setDefaultsOnInsert: true
+    }
+  );
+
+  const isNewBill = bill.guestCount === 1;
+
+  // Create table session
+  const session = await TableSession.create({
+    user: userId,
+    table: table._id,
+    bill: bill._id,
+    joinedAt: new Date(),
+    isActive: true
+  });
+
+  // Update table status to 'occupied'
+  const previousStatus = table.status;
+  if (table.status !== TABLE_STATUS.OCCUPIED) {
+    table.status = TABLE_STATUS.OCCUPIED;
+    await table.save();
+    console.log(`[JOIN TABLE BY QR] Table ${table.tableNumber} status changed from ${previousStatus} to OCCUPIED`);
+  }
+
+  // Emit real-time events
+  emitTableStatusChanged(table);
+  emitUserJoinedTable({
+    tableId: table._id.toString(),
+    userId: userId.toString(),
+    userName: 'User' // Will be populated from user object in controller
+  });
+
+  // Return session info
+  return {
+    sessionId: session._id.toString(),
+    tableId: table._id.toString(),
+    billId: bill._id.toString(),
+    table: formatTable(table),
+    bill: formatBill(bill),
+    isNewSession: true,
+    isNewBill,
+    message: 'Joined table successfully'
+  };
+};
+
 module.exports = {
   getTables,
   getTableMap,
@@ -908,5 +1274,9 @@ module.exports = {
   getTableSessionUsers,
   getTableCombinedBill,
   canUserJoinTable,
-  transferUserToTable
+  transferUserToTable,
+  transferBillBetweenTables,
+  // QR scanning functions
+  verifyQRToken,
+  joinTableByQR
 };

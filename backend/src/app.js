@@ -66,6 +66,12 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
   etag: true
 }));
 
+// Serve public files (for fallback pages, etc.)
+app.use(express.static(path.join(__dirname, '../public'), {
+  maxAge: '1d',
+  etag: true
+}));
+
 // ============================================
 // Health Check Endpoints
 // ============================================
@@ -122,6 +128,19 @@ app.get("/health/ready", async (req, res) => {
 app.use("/api", apiRoutes);
 
 // ============================================
+// Fallback Web Page for QR Code Scanning
+// ============================================
+
+/**
+ * @route   GET /table/:qrToken
+ * @desc    Fallback page for QR code scanning when app is not installed
+ * @access  Public
+ */
+app.get("/table/:qrToken", (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/table-fallback.html'));
+});
+
+// ============================================
 // Error Handling
 // ============================================
 
@@ -165,6 +184,10 @@ const startServer = async () => {
     // Initialize Socket.io for real-time features
     const { initializeSocket } = require('./socket');
     initializeSocket(server);
+
+    // Start table status scheduler
+    const { startTableStatusScheduler } = require('./jobs/tableStatusScheduler');
+    startTableStatusScheduler();
 
     // Start listening
     server.listen(PORT, () => {

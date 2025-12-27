@@ -32,10 +32,7 @@ fun ProfileScreen(
     authManager: com.qrdatmon.core.common.auth.AuthManager,
     viewModel: AttendanceViewModel
 ) {
-    var showCheckInDialog by remember { mutableStateOf(false) }
     var showCheckOutDialog by remember { mutableStateOf(false) }
-    var selectedShiftType by remember { mutableStateOf("morning") }
-    var showShiftTypeDialog by remember { mutableStateOf(false) }
     
     val attendanceState by viewModel.attendanceState.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
@@ -53,20 +50,22 @@ fun ProfileScreen(
     }
     val initials = userName.split(" ").takeLast(2).joinToString("") { it.first().toString() }.uppercase()
     
-    // Handle UI state
+    // Handle UI state - navigate on success
     LaunchedEffect(uiState) {
         when (uiState) {
             is AttendanceUiState.Success -> {
-                // Show success message if needed
+                onNavigateToAttendanceHistory()
                 viewModel.resetUiState()
             }
             is AttendanceUiState.Error -> {
-                // Show error message if needed
-                viewModel.resetUiState()
+                // Error will be shown via snackbar or toast
             }
             else -> {}
         }
     }
+    
+    // Show error message
+    val errorMessage = (uiState as? AttendanceUiState.Error)?.message
 
     LazyColumn(
         modifier = Modifier
@@ -194,6 +193,16 @@ fun ProfileScreen(
                             modifier = Modifier.padding(top = 8.dp)
                         )
                     }
+                    
+                    // Show error message if any
+                    if (errorMessage != null) {
+                        Text(
+                            text = errorMessage,
+                            fontSize = 12.sp,
+                            color = Color(0xFFD32F2F),
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -203,7 +212,7 @@ fun ProfileScreen(
                     ) {
                         if (!attendanceState.isCheckedIn) {
                             Button(
-                                onClick = { showShiftTypeDialog = true },
+                                onClick = { viewModel.clockIn() },
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(8.dp),
                                 colors = ButtonDefaults.buttonColors(
@@ -340,81 +349,6 @@ fun ProfileScreen(
         item { Spacer(modifier = Modifier.height(32.dp)) }
     }
 
-    // Shift Type Selection Dialog
-    if (showShiftTypeDialog) {
-        AlertDialog(
-            onDismissRequest = { showShiftTypeDialog = false },
-            title = { Text("Chọn ca làm việc") },
-            text = {
-                Column {
-                    ShiftTypeOption("Ca sáng", "morning", selectedShiftType) {
-                        selectedShiftType = it
-                    }
-                    ShiftTypeOption("Ca chiều", "afternoon", selectedShiftType) {
-                        selectedShiftType = it
-                    }
-                    ShiftTypeOption("Ca tối", "evening", selectedShiftType) {
-                        selectedShiftType = it
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showShiftTypeDialog = false
-                        showCheckInDialog = true
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF4CAF50)
-                    )
-                ) {
-                    Text("Tiếp tục")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showShiftTypeDialog = false }) {
-                    Text("Hủy")
-                }
-            }
-        )
-    }
-
-    // Check In Dialog
-    if (showCheckInDialog) {
-        val shiftTypeName = when(selectedShiftType) {
-            "morning" -> "ca sáng"
-            "afternoon" -> "ca chiều"
-            "evening" -> "ca tối"
-            else -> "ca làm việc"
-        }
-        
-        AlertDialog(
-            onDismissRequest = { showCheckInDialog = false },
-            title = { Text("Xác nhận chấm công vào") },
-            text = { 
-                Text("Bạn có chắc chắn muốn chấm công vào $shiftTypeName?")
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.clockIn(selectedShiftType)
-                        showCheckInDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF4CAF50)
-                    )
-                ) {
-                    Text("Xác nhận")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showCheckInDialog = false }) {
-                    Text("Hủy")
-                }
-            }
-        )
-    }
-
     // Check Out Dialog
     if (showCheckOutDialog) {
         AlertDialog(
@@ -442,32 +376,6 @@ fun ProfileScreen(
                 }
             }
         )
-    }
-}
-
-@Composable
-private fun ShiftTypeOption(
-    label: String,
-    value: String,
-    selectedValue: String,
-    onSelect: (String) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onSelect(value) }
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        RadioButton(
-            selected = selectedValue == value,
-            onClick = { onSelect(value) },
-            colors = RadioButtonDefaults.colors(
-                selectedColor = Color(0xFF4CAF50)
-            )
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(text = label, fontSize = 16.sp)
     }
 }
 

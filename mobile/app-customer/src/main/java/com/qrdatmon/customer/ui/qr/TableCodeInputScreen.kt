@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -36,8 +37,41 @@ fun TableCodeInputScreen(
     viewModel: TableCodeInputViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val joinTableResult by viewModel.joinTableResult.collectAsState()
     var selectedTable by remember { mutableStateOf<TableItem?>(null) }
+    var showErrorDialog by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
+    var isJoiningTable by remember { mutableStateOf(false) }
     val isCodeValid = selectedTable != null
+    
+    // Handle join table result
+    LaunchedEffect(joinTableResult) {
+        joinTableResult?.let { result ->
+            result.onSuccess {
+                // Join successful, save table info and navigate
+                if (selectedTable != null) {
+                    com.qrdatmon.customer.data.TableManager.setTable(
+                        com.qrdatmon.customer.data.SelectedTable(
+                            id = selectedTable!!.id,
+                            tableNumber = selectedTable!!.tableNumber,
+                            areaName = selectedTable!!.areaName,
+                            displayName = selectedTable!!.displayName
+                        )
+                    )
+                    viewModel.resetJoinTableResult()
+                    isJoiningTable = false
+                    onConfirmClick(selectedTable!!.id)
+                }
+            }
+            result.onFailure { error ->
+                // Show error
+                errorMessage = error.message ?: "Không thể kết nối đến bàn. Vui lòng thử lại."
+                showErrorDialog = true
+                isJoiningTable = false
+                viewModel.resetJoinTableResult()
+            }
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -90,17 +124,18 @@ fun TableCodeInputScreen(
                 // Confirm Button
                 Button(
                     onClick = { 
-                        if (isCodeValid && selectedTable != null) {
-                            // Save table info to TableManager
-                            com.qrdatmon.customer.data.TableManager.setTable(
-                                com.qrdatmon.customer.data.SelectedTable(
-                                    id = selectedTable!!.id,
-                                    tableNumber = selectedTable!!.tableNumber,
-                                    areaName = selectedTable!!.areaName,
-                                    displayName = selectedTable!!.displayName
-                                )
-                            )
-                            onConfirmClick(selectedTable!!.id)
+                        if (isCodeValid && selectedTable != null && !isJoiningTable) {
+                            // Validate table status
+                            val validationError = viewModel.validateTableStatus(selectedTable!!.status)
+                            if (validationError != null) {
+                                // Show error dialog
+                                errorMessage = validationError
+                                showErrorDialog = true
+                            } else {
+                                // Join table via API using qrToken
+                                isJoiningTable = true
+                                viewModel.joinTable(selectedTable!!.qrToken)
+                            }
                         }
                     },
                     modifier = Modifier
@@ -108,17 +143,25 @@ fun TableCodeInputScreen(
                         .height(52.dp),
                     shape = RoundedCornerShape(24.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isCodeValid) Color(0xFFFF6F3C) else Color(0x66FF6F3C),
+                        containerColor = if (isCodeValid && !isJoiningTable) Color(0xFFFF6F3C) else Color(0x66FF6F3C),
                         disabledContainerColor = Color(0x66FF6F3C)
                     ),
-                    enabled = isCodeValid
+                    enabled = isCodeValid && !isJoiningTable
                 ) {
-                    Text(
-                        text = "Xác nhận",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color.White
-                    )
+                    if (isJoiningTable) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(
+                            text = "Xác nhận",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.White
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -160,6 +203,22 @@ fun TableCodeInputScreen(
                     .padding(vertical = 8.dp)
             )
         }
+    }
+    
+    // Error Dialog
+    if (showErrorDialog) {
+        TableUnavailableDialog(
+            message = errorMessage,
+            onDismiss = { 
+                showErrorDialog = false
+                selectedTable = null // Clear selection
+            },
+            onRetry = {
+                showErrorDialog = false
+                selectedTable = null
+                viewModel.retryLoadTables() // Reload tables
+            }
+        )
     }
 }
 
@@ -215,19 +274,14 @@ private fun TableCodeAppBranding() {
                 .padding(2.dp),
             contentAlignment = Alignment.Center
         ) {
-            Box(
+            Image(
+                painter = painterResource(id = com.qrdatmon.customer.R.drawable.logo),
+                contentDescription = "Logo",
                 modifier = Modifier
                     .size(28.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFFF6F3C)),
-                contentAlignment = Alignment.Center
-            ) {
-                Image(
-                    painter = painterResource(id = com.qrdatmon.customer.R.drawable.logo),
-                    contentDescription = "Logo",
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
         }
 
         // App Name and Subtitle
@@ -502,4 +556,87 @@ private fun TableItemRow(
             }
         }
     }
+}
+
+
+@Composable
+private fun TableUnavailableDialog(
+    message: String,
+    onDismiss: () -> Unit,
+    onRetry: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFFFEBEE)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "⚠️",
+                    fontSize = 28.sp
+                )
+            }
+        },
+        title = {
+            Text(
+                text = "Bàn không khả dụng",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF222222),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        text = {
+            Text(
+                text = message,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Normal,
+                color = Color(0xFF666666),
+                textAlign = TextAlign.Center,
+                lineHeight = 20.sp,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = onRetry,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFFF6F3C)
+                )
+            ) {
+                Text(
+                    text = "Chọn bàn khác",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.White
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp)
+            ) {
+                Text(
+                    text = "Đóng",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF666666)
+                )
+            }
+        },
+        shape = RoundedCornerShape(20.dp),
+        containerColor = Color.White
+    )
 }

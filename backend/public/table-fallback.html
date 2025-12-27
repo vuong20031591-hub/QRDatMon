@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="QRDatMon - Đặt món nhanh chóng qua QR Code">
+    <title>QRDatMon - Quét QR để đặt món</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 480px;
+            width: 100%;
+            overflow: hidden;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 30px;
+            text-align: center;
+            color: white;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: white;
+            border-radius: 20px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .restaurant-name {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .tagline {
+            font-size: 14px;
+            opacity: 0.95;
+            font-weight: 400;
+        }
+
+        .content {
+            padding: 40px 30px;
+        }
+
+        .table-info {
+            background: #f8f9fa;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 30px;
+            border: 2px solid #e9ecef;
+        }
+
+        .table-info-title {
+            font-size: 14px;
+            color: #6c757d;
+            margin-bottom: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .table-details {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .table-detail-item {
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .table-detail-label {
+            font-size: 12px;
+            color: #6c757d;
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+
+        .table-detail-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .message {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .message-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #212529;
+            margin-bottom: 12px;
+        }
+
+        .message-text {
+            font-size: 15px;
+            color: #6c757d;
+            line-height: 1.6;
+        }
+
+        .download-button {
+            display: block;
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            padding: 18px 32px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            margin-bottom: 16px;
+        }
+
+        .download-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+        }
+
+        .download-button:active {
+            transform: translateY(0);
+        }
+
+        .download-icon {
+            display: inline-block;
+            margin-right: 8px;
+            font-size: 20px;
+        }
+
+        .app-store-buttons {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .app-store-button {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            text-decoration: none;
+            color: #212529;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .app-store-button:hover {
+            border-color: #667eea;
+            background: #f8f9fa;
+        }
+
+        .app-store-button img {
+            height: 32px;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px 30px 30px;
+            color: #6c757d;
+            font-size: 13px;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .footer-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .footer-link:hover {
+            text-decoration: underline;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            color: #856404;
+        }
+
+        .error-title {
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                border-radius: 16px;
+            }
+
+            .header {
+                padding: 30px 20px;
+            }
+
+            .content {
+                padding: 30px 20px;
+            }
+
+            .restaurant-name {
+                font-size: 24px;
+            }
+
+            .table-details {
+                flex-direction: column;
+                gap: 16px;
+            }
+
+            .app-store-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🍜</div>
+            <h1 class="restaurant-name">QRDatMon</h1>
+            <p class="tagline">Đặt món nhanh chóng qua QR Code</p>
+        </div>
+
+        <div class="content" id="content">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Đang tải thông tin bàn...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Parse qrToken from URL
+        const pathParts = window.location.pathname.split('/');
+        const qrToken = pathParts[pathParts.length - 1];
+
+        // Save qrToken to localStorage for later use
+        if (qrToken && qrToken !== 'table') {
+            localStorage.setItem('qrdatmon_qrToken', qrToken);
+            localStorage.setItem('qrdatmon_qrToken_timestamp', Date.now().toString());
+        }
+
+        // Fetch table information
+        async function loadTableInfo() {
+            const contentDiv = document.getElementById('content');
+
+            if (!qrToken || qrToken === 'table') {
+                contentDiv.innerHTML = `
+                    <div class="error">
+                        <div class="error-title">⚠️ Mã QR không hợp lệ</div>
+                        <p>Vui lòng quét lại mã QR trên bàn hoặc liên hệ nhân viên để được hỗ trợ.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            try {
+                // Get API base URL from current location
+                const apiBaseUrl = window.location.origin;
+                
+                const response = await fetch(`${apiBaseUrl}/api/tables/verify-qr/${qrToken}`);
+                
+                if (!response.ok) {
+                    throw new Error('Table not found');
+                }
+
+                const data = await response.json();
+                const table = data.data;
+
+                // Render table information
+                contentDiv.innerHTML = `
+                    <div class="table-info">
+                        <div class="table-info-title">Thông tin bàn</div>
+                        <div class="table-details">
+                            <div class="table-detail-item">
+                                <div class="table-detail-label">Số bàn</div>
+                                <div class="table-detail-value">${table.tableNumber}</div>
+                            </div>
+                            <div class="table-detail-item">
+                                <div class="table-detail-label">Khu vực</div>
+                                <div class="table-detail-value">${table.area?.name || 'N/A'}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="message">
+                        <h2 class="message-title">📱 Tải ứng dụng để đặt món</h2>
+                        <p class="message-text">
+                            Để sử dụng tính năng đặt món qua QR Code, vui lòng tải ứng dụng QRDatMon từ cửa hàng ứng dụng.
+                        </p>
+                    </div>
+
+                    <a href="https://play.google.com/store/apps" class="download-button" target="_blank" rel="noopener noreferrer">
+                        <span class="download-icon">📲</span>
+                        Tải ứng dụng ngay
+                    </a>
+
+                    <div class="app-store-buttons">
+                        <a href="https://play.google.com/store/apps" class="app-store-button" target="_blank" rel="noopener noreferrer">
+                            <span style="font-size: 24px; margin-right: 8px;">▶️</span>
+                            Google Play
+                        </a>
+                        <a href="https://www.apple.com/app-store/" class="app-store-button" target="_blank" rel="noopener noreferrer">
+                            <span style="font-size: 24px; margin-right: 8px;">🍎</span>
+                            App Store
+                        </a>
+                    </div>
+                `;
+
+            } catch (error) {
+                console.error('Error loading table info:', error);
+                contentDiv.innerHTML = `
+                    <div class="error">
+                        <div class="error-title">❌ Không tìm thấy bàn</div>
+                        <p>Mã QR không hợp lệ hoặc bàn không tồn tại. Vui lòng quét lại mã QR mới hoặc liên hệ nhân viên.</p>
+                    </div>
+                    <a href="/" class="download-button">
+                        🏠 Về trang chủ
+                    </a>
+                `;
+            }
+        }
+
+        // Add footer
+        const container = document.querySelector('.container');
+        const footer = document.createElement('div');
+        footer.className = 'footer';
+        footer.innerHTML = `
+            <p>
+                Cần hỗ trợ? 
+                <a href="tel:1900xxxx" class="footer-link">Gọi 1900 xxxx</a>
+            </p>
+            <p style="margin-top: 8px; font-size: 12px;">
+                © 2024 QRDatMon. All rights reserved.
+            </p>
+        `;
+        container.appendChild(footer);
+
+        // Load table info on page load
+        loadTableInfo();
+
+        // Check if app is installed (for future deep link support)
+        function checkAppInstalled() {
+            // This will be implemented when deep link is configured
+            // For now, always show download page
+            return false;
+        }
+
+        // Try to open app if installed
+        if (checkAppInstalled()) {
+            // Attempt to open app via deep link
+            const deepLink = `qrdatmon://table/${qrToken}`;
+            window.location.href = deepLink;
+            
+            // Fallback to download page after 2 seconds if app doesn't open
+            setTimeout(() => {
+                // If still on this page, show download instructions
+            }, 2000);
+        }
+    </script>
+</body>
+</html>

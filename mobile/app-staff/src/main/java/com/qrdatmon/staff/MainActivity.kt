@@ -102,7 +102,7 @@ fun StaffAppNavigation(
         }
         "attendanceHistory" -> {
             com.qrdatmon.staff.ui.profile.AttendanceHistoryScreen(
-                onBackClick = { currentScreen = "profile" },
+                onBackClick = { currentScreen = "main" },
                 viewModel = attendanceViewModel
             )
         }

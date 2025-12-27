@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Plus, MapPin, Pencil, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,6 +12,7 @@ import { TableForm } from "@/features/tables/components/table-form"
 import { AreaForm } from "@/features/tables/components/area-form"
 import { QRCodeDialog } from "@/features/tables/components/qr-code-dialog"
 import { useTables, useAreas } from "@/features/tables/hooks/use-tables"
+import { useSocket } from "@/hooks/use-socket"
 import type { Table, Area } from "@/types"
 import type { TableFormValues, AreaFormValues } from "@/features/tables/schemas/table.schema"
 
@@ -23,8 +24,10 @@ const statusCounts = (tables: Table[]) => ({
 })
 
 export default function TablesPage() {
-  const { tables, loading, createTable, updateTable, deleteTable, updateStatus, generateQR } = useTables()
+  const [mounted, setMounted] = useState(false)
+  const { tables, loading, fetchTables, updateTableInState, createTable, updateTable, deleteTable, updateStatus, generateQR } = useTables()
   const { areas, createArea, updateArea, deleteArea } = useAreas()
+  const { on, isConnected } = useSocket({ rooms: ["staff"] })
   
   const [tableFormOpen, setTableFormOpen] = useState(false)
   const [areaFormOpen, setAreaFormOpen] = useState(false)
@@ -38,6 +41,71 @@ export default function TablesPage() {
   const [filterArea, setFilterArea] = useState<string>("all")
   const [filterStatus, setFilterStatus] = useState<string>("all")
   const [formLoading, setFormLoading] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Real-time socket listeners for table updates
+  useEffect(() => {
+    if (!isConnected) {
+      console.log("Socket not connected yet, waiting...")
+      return
+    }
+
+    console.log("Setting up table socket listeners...")
+
+    // Listen for table status changes
+    const unsubscribeStatusChanged = on<{ 
+      type: string;
+      data: { tableId: string; tableNumber: string; status: string; area: string };
+      timestamp: string;
+    }>("table:status-changed", (event) => {
+      console.log(" Table status changed event received:", event)
+      
+      // Update the specific table in state immediately for instant UI update
+      updateTableInState(event.data.tableId, { 
+        status: event.data.status as Table["status"] 
+      })
+      
+      // Also fetch to get complete data including guest count after a short delay
+      setTimeout(() => {
+        console.log(" Fetching tables to get complete data...")
+        fetchTables()
+      }, 500)
+    })
+
+    // Listen for user joined table
+    const unsubscribeUserJoined = on<{ 
+      type: string;
+      data: { tableId: string; userId: string; userName: string };
+      timestamp: string;
+    }>("table:user-joined", (event) => {
+      console.log(" User joined table event received:", event)
+      
+      // Fetch tables to update guest count
+      fetchTables()
+    })
+
+    // Listen for user left table
+    const unsubscribeUserLeft = on<{ 
+      type: string;
+      data: { tableId: string; userId: string };
+      timestamp: string;
+    }>("table:user-left", (event) => {
+      console.log(" User left table event received:", event)
+      
+      // Fetch tables to update guest count
+      fetchTables()
+    })
+
+    return () => {
+      console.log("Cleaning up table socket listeners...")
+      unsubscribeStatusChanged()
+      unsubscribeUserJoined()
+      unsubscribeUserLeft()
+    }
+  }, [isConnected, on, fetchTables, updateTableInState])
 
   const filteredTables = tables.filter(table => {
     const areaMatch = filterArea === "all" || (typeof table.area === "string" ? table.area : table.area?.id) === filterArea
@@ -98,8 +166,19 @@ export default function TablesPage() {
     setQrDialogOpen(true)
   }
 
+  const handleViewQR = (table: Table) => {
+    setSelectedTable(table)
+    setQrDialogOpen(true)
+  }
+
   const handleRegenerateQR = async (table: Table) => {
     await generateQR(table.id, true)
+  }
+
+  if (!mounted) {
+    return <div className="flex items-center justify-center min-h-screen">
+      <div className="text-muted-foreground">Đang tải...</div>
+    </div>
   }
 
   return (
@@ -195,6 +274,7 @@ export default function TablesPage() {
                   onDelete={(t) => { setTableToDelete(t); setDeleteDialogOpen(true) }}
                   onStatusChange={handleStatusChange}
                   onDownloadQR={handleDownloadQR}
+                  onViewQR={handleViewQR}
                 />
               ))}
             </div>

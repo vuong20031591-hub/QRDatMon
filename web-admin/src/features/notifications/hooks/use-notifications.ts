@@ -64,6 +64,17 @@ export function useNotifications(): UseNotificationsReturn {
       }
       setPagination(paginationData)
     } catch (err: unknown) {
+      // Silently handle 404 errors (API not available)
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosError = err as { response?: { status?: number } }
+        if (axiosError.response?.status === 404) {
+          // API endpoint not available, set empty state
+          setNotifications([])
+          setPagination(null)
+          setLoading(false)
+          return
+        }
+      }
       const errorMessage = err instanceof Error ? err.message : 'Không thể tải thông báo'
       setError(errorMessage)
       console.error('Failed to fetch notifications:', err)
@@ -75,9 +86,17 @@ export function useNotifications(): UseNotificationsReturn {
   const fetchUnreadCount = useCallback(async () => {
     try {
       const response = await apiClient.get('/notifications/unread-count')
-      const count = response.data.data?.count ?? response.data.data ?? 0
+      const count = response.data.data?.count ?? response.data.data?.unreadCount ?? response.data.data ?? 0
       setUnreadCount(count)
     } catch (err) {
+      // Silently handle 404 errors (API not available)
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosError = err as { response?: { status?: number } }
+        if (axiosError.response?.status === 404) {
+          setUnreadCount(0)
+          return
+        }
+      }
       console.error('Failed to fetch unread count:', err)
     }
   }, [])

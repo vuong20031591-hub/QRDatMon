@@ -17,6 +17,7 @@ const {
   ORDER_ITEM_STATUS,
   BILL_STATUS,
   MENU_ITEM_STATUS,
+  TABLE_STATUS,
   PAGINATION
 } = require('../utils/constants');
 const {
@@ -148,15 +149,35 @@ const createOrder = async (userId, options = {}) => {
     items: orderItems
   });
 
-  // Update bill subtotal
-  bill.subtotal = (bill.subtotal || 0) + totalAmount;
-  bill.serviceChargeAmount = Math.round(bill.subtotal * (bill.serviceChargePercent / 100));
-  bill.vatAmount = Math.round((bill.subtotal + bill.serviceChargeAmount) * (bill.vatPercent / 100));
-  bill.totalAmount = bill.subtotal - bill.discountAmount + bill.serviceChargeAmount + bill.vatAmount;
-  await bill.save();
+  //  FIX RACE CONDITION: Use atomic $inc for bill subtotal update
+  const updatedBill = await Bill.findByIdAndUpdate(
+    bill._id,
+    {
+      $inc: { subtotal: totalAmount }
+    },
+    { new: true }
+  );
+
+  // Recalculate service charge, VAT, and total
+  updatedBill.serviceChargeAmount = Math.round(updatedBill.subtotal * (updatedBill.serviceChargePercent / 100));
+  updatedBill.vatAmount = Math.round((updatedBill.subtotal + updatedBill.serviceChargeAmount) * (updatedBill.vatPercent / 100));
+  updatedBill.totalAmount = updatedBill.subtotal - updatedBill.discountAmount + updatedBill.serviceChargeAmount + updatedBill.vatAmount;
+  await updatedBill.save();
 
   // Clear the cart after successful order creation
   await cartService.deleteCart(userId, session.table._id.toString());
+
+  // Update table status to occupied if this is the first order
+  const Table = require('../models/table.model');
+  const table = await Table.findById(session.table._id);
+  if (table && table.status !== TABLE_STATUS.OCCUPIED) {
+    table.status = TABLE_STATUS.OCCUPIED;
+    await table.save();
+    
+    // Emit table status change event
+    const { emitTableStatusChanged } = require('../socket/emitters');
+    emitTableStatusChanged(table);
+  }
 
   // Emit real-time event to kitchen
   const formattedOrder = formatOrder(order);

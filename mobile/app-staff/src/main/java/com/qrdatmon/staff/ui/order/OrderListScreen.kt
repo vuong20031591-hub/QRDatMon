@@ -49,10 +49,35 @@ fun OrderListScreen(
     val tabs = listOf("Đang xử lý", "Hoàn thành")
     
     val uiState by viewModel.uiState.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     // Load all orders once
     LaunchedEffect(Unit) {
         viewModel.loadOrders(null)
+    }
+
+    // Handle action success
+    LaunchedEffect(uiState.actionSuccess) {
+        if (uiState.actionSuccess) {
+            android.widget.Toast.makeText(
+                context,
+                "Thao tác thành công",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+            viewModel.resetActionSuccess()
+        }
+    }
+
+    // Handle errors
+    LaunchedEffect(uiState.errorMessage) {
+        if (uiState.errorMessage.isNotEmpty() && !uiState.isLoading) {
+            android.widget.Toast.makeText(
+                context,
+                uiState.errorMessage,
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+            viewModel.clearError()
+        }
     }
 
     val filteredOrders = when (selectedTab) {
@@ -193,7 +218,13 @@ fun OrderListScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(filteredOrders) { order ->
-                            OrderCard(order = order)
+                            OrderCard(
+                                order = order,
+                                isConfirming = uiState.isConfirming,
+                                isCancelling = uiState.isCancelling,
+                                onConfirm = { viewModel.confirmOrder(order.id) },
+                                onReject = { viewModel.cancelOrder(order.id) }
+                            )
                         }
                     }
                 }
@@ -203,7 +234,13 @@ fun OrderListScreen(
 }
 
 @Composable
-private fun OrderCard(order: OrderItem) {
+private fun OrderCard(
+    order: OrderItem,
+    isConfirming: Boolean = false,
+    isCancelling: Boolean = false,
+    onConfirm: () -> Unit = {},
+    onReject: () -> Unit = {}
+) {
     val (statusColor, statusText) = when (order.status) {
         OrderItemStatus.PENDING -> Color(0xFFFF9800) to "Chờ xác nhận"
         OrderItemStatus.CONFIRMED -> Color(0xFF2196F3) to "Đã xác nhận"
@@ -350,24 +387,42 @@ private fun OrderCard(order: OrderItem) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedButton(
-                        onClick = { /* TODO: Reject order */ },
+                        onClick = onReject,
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = Color(0xFFD32F2F)
-                        )
+                        ),
+                        enabled = !isConfirming && !isCancelling
                     ) {
-                        Text("Từ chối")
+                        if (isCancelling) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = Color(0xFFD32F2F),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text("Từ chối")
+                        }
                     }
                     Button(
-                        onClick = { /* TODO: Confirm order */ },
+                        onClick = onConfirm,
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFF4CAF50)
-                        )
+                        ),
+                        enabled = !isConfirming && !isCancelling
                     ) {
-                        Text("Xác nhận")
+                        if (isConfirming) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text("Xác nhận")
+                        }
                     }
                 }
             }

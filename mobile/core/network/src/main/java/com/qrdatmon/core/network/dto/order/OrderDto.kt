@@ -90,3 +90,13 @@ data class CreateOrderRequest(
     val tableId: String,
     val note: String? = null
 )
+
+@Serializable
+data class CancelOrderRequest(
+    val reason: String
+)
+
+@Serializable
+data class OrderDetailWrapper(
+    val order: OrderResponse
+)

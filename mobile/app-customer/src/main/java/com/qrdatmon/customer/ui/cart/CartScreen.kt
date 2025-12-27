@@ -6,6 +6,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -27,6 +29,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.qrdatmon.core.common.util.ImageUrlBuilder
 import com.qrdatmon.customer.ui.components.AppBottomNavigation
@@ -41,7 +44,8 @@ data class CartItem(
     val toppingPrice: Int,
     val quantity: Int,
     val imageUrl: String,
-    val note: String? = null
+    val note: String? = null,
+    val categoryId: String? = null // Category ID for suggestions
 )
 
 @Composable
@@ -52,7 +56,10 @@ fun CartScreen(
     onNavigateToMenu: () -> Unit,
     onNavigateToOrderStatus: () -> Unit,
     onNavigateToLogin: () -> Unit = {},
-    viewModel: CartViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    onProfileClick: () -> Unit = {},
+    onFavoritesClick: () -> Unit = {},
+    onMenuItemClick: (String) -> Unit = {},
+    viewModel: CartViewModel = hiltViewModel()
 ) {
     val cartItems by com.qrdatmon.customer.data.CartManager.cartItems.collectAsState()
     val selectedTable by com.qrdatmon.customer.data.TableManager.selectedTable.collectAsState()
@@ -63,6 +70,13 @@ fun CartScreen(
     // ViewModel states
     val isCreatingOrder by viewModel.isCreatingOrder.collectAsState()
     val orderResult by viewModel.orderResult.collectAsState()
+    val suggestedItems by viewModel.suggestedItems.collectAsState()
+    val isLoadingSuggestions by viewModel.isLoadingSuggestions.collectAsState()
+    
+    // Load suggestions when cart changes
+    LaunchedEffect(cartItems) {
+        viewModel.loadSuggestions(cartItems)
+    }
     
     // Get AuthManager to check login state
     val authManager = remember { 
@@ -140,9 +154,38 @@ fun CartScreen(
                 onCheckoutClick()
             }
             result.onFailure { error ->
-                // Show error (you can add a Snackbar or Toast here)
-                android.util.Log.e("CartScreen", "Failed to create order: ${error.message}")
+                // Fallback: Create local order if API fails
+                android.util.Log.e("CartScreen", "API failed, creating local order: ${error.message}")
+                
+                // Check if there's already an order
+                if (currentOrder != null) {
+                    // Add items to existing order
+                    com.qrdatmon.customer.data.OrderManager.addItemsToCurrentOrder(
+                        newItems = cartItems,
+                        additionalSubtotal = subtotal,
+                        additionalDiscount = discount,
+                        additionalTotal = finalTotal
+                    )
+                } else {
+                    // Create local order
+                    com.qrdatmon.customer.data.OrderManager.createOrder(
+                        tableId = tableId,
+                        tableDisplayName = tableDisplayName,
+                        items = cartItems,
+                        subtotal = subtotal,
+                        discount = discount,
+                        total = finalTotal
+                    )
+                }
+                
+                // Clear cart
+                com.qrdatmon.customer.data.CartManager.clearCart()
+                
+                // Reset order result
                 viewModel.resetOrderResult()
+                
+                // Navigate to order status
+                onCheckoutClick()
             }
         }
     }
@@ -183,7 +226,9 @@ fun CartScreen(
             CartHeader(
                 tableDisplayName = tableDisplayName,
                 itemCount = cartItems.sumOf { it.quantity },
-                onBackClick = onBackClick
+                onBackClick = onBackClick,
+                onProfileClick = onProfileClick,
+                onFavoritesClick = onFavoritesClick
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -264,6 +309,17 @@ fun CartScreen(
                                 )
                             }
                         }
+                    }
+                }
+
+                // Suggested Items Section
+                if (suggestedItems.isNotEmpty() && cartItems.isNotEmpty()) {
+                    item {
+                        SuggestedItemsSection(
+                            items = suggestedItems,
+                            isLoading = isLoadingSuggestions,
+                            onItemClick = onMenuItemClick
+                        )
                     }
                 }
 
@@ -373,7 +429,9 @@ fun CartScreen(
 private fun CartHeader(
     tableDisplayName: String,
     itemCount: Int,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onProfileClick: () -> Unit,
+    onFavoritesClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -400,21 +458,11 @@ private fun CartHeader(
             )
         }
 
-        // Notification Icon with Badge
-        Box(
-            modifier = Modifier
-                .size(32.dp)
-                .background(Color(0xFFF5F5F5), CircleShape)
-                .clickable { /* TODO */ },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Notifications,
-                contentDescription = "Notifications",
-                tint = Color(0xFF222222),
-                modifier = Modifier.size(20.dp)
-            )
-        }
+        // More Options Menu
+        com.qrdatmon.customer.ui.components.MoreOptionsButton(
+            onProfileClick = onProfileClick,
+            onFavoritesClick = onFavoritesClick
+        )
     }
 }
 
@@ -832,5 +880,136 @@ private fun SummaryRow(
             fontWeight = FontWeight.Medium,
             color = valueColor
         )
+    }
+}
+
+@Composable
+private fun SuggestedItemsSection(
+    items: List<com.qrdatmon.core.network.dto.menu.MenuItemResponse>,
+    isLoading: Boolean,
+    onItemClick: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Gợi ý thêm cho bạn",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF222222)
+            )
+        }
+
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = Color(0xFFFF6F3C),
+                    strokeWidth = 2.dp
+                )
+            }
+        } else {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(items.size) { index ->
+                    val item = items[index]
+                    SuggestedItemCard(
+                        item = item,
+                        onClick = { onItemClick(item.id) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SuggestedItemCard(
+    item: com.qrdatmon.core.network.dto.menu.MenuItemResponse,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .width(140.dp)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            // Image
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(90.dp)
+                    .background(Color(0xFFF5F5F5))
+                    .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+            ) {
+                AsyncImage(
+                    model = ImageUrlBuilder.buildFullUrl(item.imageUrl ?: ""),
+                    contentDescription = item.name,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    error = painterResource(id = android.R.drawable.ic_menu_gallery),
+                    placeholder = painterResource(id = android.R.drawable.ic_menu_gallery)
+                )
+            }
+
+            // Info
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = item.name,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF222222),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 14.sp
+                )
+
+                Text(
+                    text = "${(item.price / 1000).toInt()}.000đ",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFFFF6F3C)
+                )
+
+                // Add button
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(28.dp)
+                        .background(Color(0xFFFF6F3C), RoundedCornerShape(6.dp))
+                        .clickable { onClick() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Thêm",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.White
+                    )
+                }
+            }
+        }
     }
 }

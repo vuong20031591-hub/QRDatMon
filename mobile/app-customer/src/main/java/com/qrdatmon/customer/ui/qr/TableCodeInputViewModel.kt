@@ -22,7 +22,8 @@ data class TableItem(
     val displayName: String,
     val tableNumber: String,
     val areaName: String,
-    val status: String
+    val status: String,
+    val qrToken: String
 )
 
 @HiltViewModel
@@ -32,6 +33,9 @@ class TableCodeInputViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(TableCodeInputUiState())
     val uiState: StateFlow<TableCodeInputUiState> = _uiState.asStateFlow()
+    
+    private val _joinTableResult = MutableStateFlow<Result<Boolean>?>(null)
+    val joinTableResult: StateFlow<Result<Boolean>?> = _joinTableResult.asStateFlow()
 
     init {
         loadTables()
@@ -45,18 +49,25 @@ class TableCodeInputViewModel @Inject constructor(
 
                 if (response.success && response.data != null) {
                     val tableListResponse = response.data!!
+                    // Map all tables (including status info)
                     val tables = tableListResponse.tables.map { tableDto ->
                         TableItem(
                             id = tableDto.getTableId(),
-                            displayName = "${tableDto.area.name} - Bàn ${tableDto.tableNumber}",
+                            displayName = "${tableDto.area?.name ?: "Unknown"} - Bàn ${tableDto.tableNumber}",
                             tableNumber = tableDto.tableNumber,
-                            areaName = tableDto.area.name,
-                            status = tableDto.status
+                            areaName = tableDto.area?.name ?: "",
+                            status = tableDto.status,
+                            qrToken = tableDto.qrToken
                         )
                     }
+                    // Filter to show available and reserved tables
+                    val selectableTables = tables.filter { 
+                        it.status == "available" || it.status == "reserved" 
+                    }
+                    
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        tables = tables,
+                        tables = selectableTables,
                         errorMessage = ""
                     )
                 } else {
@@ -76,5 +87,45 @@ class TableCodeInputViewModel @Inject constructor(
 
     fun retryLoadTables() {
         loadTables()
+    }
+    
+    /**
+     * Validate table status before selection
+     * Returns error message if table is not available/reserved, null if OK
+     */
+    fun validateTableStatus(status: String): String? {
+        return when (status) {
+            "available" -> null
+            "reserved" -> null // Allow selecting reserved tables
+            "occupied" -> "Bàn này đang được sử dụng. Vui lòng chọn bàn khác."
+            "cleaning" -> "Bàn này đang được dọn dẹp. Vui lòng chọn bàn khác."
+            "inactive" -> "Bàn này hiện không hoạt động. Vui lòng chọn bàn khác."
+            else -> "Bàn này không khả dụng. Vui lòng chọn bàn khác."
+        }
+    }
+    
+    /**
+     * Join table - creates table session and updates table status
+     */
+    fun joinTable(qrToken: String) {
+        viewModelScope.launch {
+            try {
+                val response = tableApi.joinTable(
+                    request = com.qrdatmon.core.network.dto.table.JoinTableRequest(qrToken = qrToken)
+                )
+                
+                if (response.success) {
+                    _joinTableResult.value = Result.success(true)
+                } else {
+                    _joinTableResult.value = Result.failure(Exception(response.message ?: "Failed to join table"))
+                }
+            } catch (e: Exception) {
+                _joinTableResult.value = Result.failure(e)
+            }
+        }
+    }
+    
+    fun resetJoinTableResult() {
+        _joinTableResult.value = null
     }
 }

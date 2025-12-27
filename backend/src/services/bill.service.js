@@ -4,6 +4,7 @@
  * Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.10, 21.1, 21.2, 21.3, 21.4, 21.5
  */
 
+const mongoose = require('mongoose');
 const {
   Bill,
   Order,
@@ -480,77 +481,92 @@ const mergeBills = async (billIds, targetBillId, staff) => {
     throw new ValidationError('At least 2 bills are required to merge');
   }
 
-  const bills = await Bill.find({
-    _id: { $in: billIds },
-    status: BILL_STATUS.OPEN
-  });
+  // ✅ FIX RACE CONDITION: Use MongoDB transaction for atomic merge
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  if (bills.length !== billIds.length) {
-    throw new ValidationError('All bills must exist and be open');
-  }
+  try {
+    const bills = await Bill.find({
+      _id: { $in: billIds },
+      status: BILL_STATUS.OPEN
+    }).session(session);
 
-  // Check all bills are from the same table
-  const tables = [...new Set(bills.map(b => b.table.toString()))];
-  if (tables.length > 1) {
-    throw new ValidationError('All bills must be from the same table');
-  }
-
-  // Determine target bill
-  const targetId = targetBillId || billIds[0];
-  const targetBill = bills.find(b => b._id.toString() === targetId);
-
-  if (!targetBill) {
-    throw new NotFoundError('Target bill not found');
-  }
-
-  const sourceBills = bills.filter(b => b._id.toString() !== targetId);
-
-  // Move all orders to target bill
-  for (const sourceBill of sourceBills) {
-    await Order.updateMany(
-      { bill: sourceBill._id },
-      { $set: { bill: targetBill._id } }
-    );
-
-    // Add subtotal
-    targetBill.subtotal += sourceBill.subtotal;
-    targetBill.guestCount += sourceBill.guestCount;
-
-    // Cancel source bill
-    sourceBill.status = BILL_STATUS.CANCELLED;
-    sourceBill.cancelReason = `Merged into bill ${targetBill.billNumber}`;
-    await sourceBill.save();
-  }
-
-  // If target had a voucher, check if it still meets minimum
-  if (targetBill.promotion) {
-    const promotion = await Promotion.findById(targetBill.promotion);
-    if (promotion && targetBill.subtotal < promotion.minOrderAmount) {
-      // Keep voucher since merged subtotal is higher, recalculate discount
-      let discountAmount;
-      if (promotion.discountType === 'percent') {
-        discountAmount = Math.round(targetBill.subtotal * (promotion.discountValue / 100));
-      } else {
-        discountAmount = promotion.discountValue;
-      }
-
-      if (promotion.maxDiscount !== null && discountAmount > promotion.maxDiscount) {
-        discountAmount = promotion.maxDiscount;
-      }
-
-      targetBill.discountAmount = Math.min(discountAmount, targetBill.subtotal);
+    if (bills.length !== billIds.length) {
+      throw new ValidationError('All bills must exist and be open');
     }
+
+    // Check all bills are from the same table
+    const tables = [...new Set(bills.map(b => b.table.toString()))];
+    if (tables.length > 1) {
+      throw new ValidationError('All bills must be from the same table');
+    }
+
+    // Determine target bill
+    const targetId = targetBillId || billIds[0];
+    const targetBill = bills.find(b => b._id.toString() === targetId);
+
+    if (!targetBill) {
+      throw new NotFoundError('Target bill not found');
+    }
+
+    const sourceBills = bills.filter(b => b._id.toString() !== targetId);
+
+    // Move all orders to target bill atomically
+    for (const sourceBill of sourceBills) {
+      await Order.updateMany(
+        { bill: sourceBill._id },
+        { $set: { bill: targetBill._id } }
+      ).session(session);
+
+      // Add subtotal
+      targetBill.subtotal += sourceBill.subtotal;
+      targetBill.guestCount += sourceBill.guestCount;
+
+      // Cancel source bill
+      sourceBill.status = BILL_STATUS.CANCELLED;
+      sourceBill.cancelReason = `Merged into bill ${targetBill.billNumber}`;
+      await sourceBill.save({ session });
+    }
+
+    // If target had a voucher, check if it still meets minimum
+    if (targetBill.promotion) {
+      const promotion = await Promotion.findById(targetBill.promotion).session(session);
+      if (promotion && targetBill.subtotal < promotion.minOrderAmount) {
+        // Keep voucher since merged subtotal is higher, recalculate discount
+        let discountAmount;
+        if (promotion.discountType === 'percent') {
+          discountAmount = Math.round(targetBill.subtotal * (promotion.discountValue / 100));
+        } else {
+          discountAmount = promotion.discountValue;
+        }
+
+        if (promotion.maxDiscount !== null && discountAmount > promotion.maxDiscount) {
+          discountAmount = promotion.maxDiscount;
+        }
+
+        targetBill.discountAmount = Math.min(discountAmount, targetBill.subtotal);
+      }
+    }
+
+    // Recalculate totals
+    const totals = calculateBillTotal(targetBill);
+    targetBill.serviceChargeAmount = totals.serviceChargeAmount;
+    targetBill.vatAmount = totals.vatAmount;
+    targetBill.totalAmount = totals.totalAmount;
+
+    await targetBill.save({ session });
+
+    // Commit transaction
+    await session.commitTransaction();
+    session.endSession();
+
+    return getBillById(targetId);
+  } catch (error) {
+    // Rollback on error
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
   }
-
-  // Recalculate totals
-  const totals = calculateBillTotal(targetBill);
-  targetBill.serviceChargeAmount = totals.serviceChargeAmount;
-  targetBill.vatAmount = totals.vatAmount;
-  targetBill.totalAmount = totals.totalAmount;
-
-  await targetBill.save();
-
-  return getBillById(targetId);
 };
 
 /**
@@ -689,9 +705,17 @@ const cancelBill = async (billId, reason, staff) => {
     { isActive: false, leftAt: new Date() }
   );
 
-  await Table.findByIdAndUpdate(bill.table, {
-    status: TABLE_STATUS.AVAILABLE
-  });
+  const table = await Table.findByIdAndUpdate(
+    bill.table,
+    { status: TABLE_STATUS.AVAILABLE },
+    { new: true }
+  );
+
+  // Emit table status change event
+  if (table) {
+    const { emitTableStatusChanged } = require('../socket/emitters');
+    emitTableStatusChanged(table);
+  }
 
   return getBillById(billId);
 };

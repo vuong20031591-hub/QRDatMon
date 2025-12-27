@@ -66,9 +66,9 @@ class AttendanceViewModel @Inject constructor(
         }
     }
     
-    fun clockIn(shiftType: String, note: String? = null) {
+    fun clockIn(shiftType: String? = null, note: String? = null) {
         viewModelScope.launch {
-            _uiState.value = AttendanceUiState.Loading
+            _attendanceState.value = _attendanceState.value.copy(isLoading = true)
             
             repository.clockIn(shiftType, note).fold(
                 onSuccess = { shift ->
@@ -81,6 +81,7 @@ class AttendanceViewModel @Inject constructor(
                     _uiState.value = AttendanceUiState.Success("Chấm công vào thành công")
                 },
                 onFailure = { error ->
+                    _attendanceState.value = _attendanceState.value.copy(isLoading = false)
                     _uiState.value = AttendanceUiState.Error(
                         error.message ?: "Chấm công vào thất bại"
                     )

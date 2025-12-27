@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -291,19 +292,14 @@ private fun AppBranding() {
                 .padding(3.dp),
             contentAlignment = Alignment.Center
         ) {
-            Box(
+            Image(
+                painter = painterResource(id = com.qrdatmon.customer.R.drawable.logo),
+                contentDescription = "Logo",
                 modifier = Modifier
                     .size(42.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFFF6F3C)),
-                contentAlignment = Alignment.Center
-            ) {
-                Image(
-                    painter = painterResource(id = com.qrdatmon.customer.R.drawable.logo),
-                    contentDescription = "Logo",
-                    modifier = Modifier.size(28.dp)
-                )
-            }
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
         }
 
         // App Name and Subtitle

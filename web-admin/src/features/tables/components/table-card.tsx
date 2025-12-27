@@ -22,14 +22,28 @@ interface TableCardProps {
   onDelete: (table: Table) => void
   onStatusChange: (table: Table, status: Table["status"]) => void
   onDownloadQR: (table: Table) => void
+  onViewQR?: (table: Table) => void
 }
 
-export function TableCard({ table, areas, onEdit, onDelete, onStatusChange, onDownloadQR }: TableCardProps) {
+export function TableCard({ table, areas, onEdit, onDelete, onStatusChange, onDownloadQR, onViewQR }: TableCardProps) {
   const status = statusConfig[table.status]
   const areaName = typeof table.area === "string" ? areas.find(a => a.id === table.area)?.name : table.area?.name
 
+  const handleCardClick = () => {
+    // Mở QR dialog khi click vào card
+    if (onViewQR) {
+      onViewQR(table)
+    }
+  }
+
   return (
-    <Card className={cn("relative overflow-hidden transition-all hover:shadow-lg", !table.isActive && "opacity-60")}>
+    <Card 
+      className={cn(
+        "relative overflow-hidden transition-all hover:shadow-lg cursor-pointer", 
+        !table.isActive && "opacity-60"
+      )}
+      onClick={handleCardClick}
+    >
       <div className={cn("absolute top-0 left-0 right-0 h-1", status.color)} />
       <CardContent className="p-4">
         <div className="flex items-start justify-between mb-3">
@@ -39,9 +53,16 @@ export function TableCard({ table, areas, onEdit, onDelete, onStatusChange, onDo
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
               <DropdownMenuItem onClick={() => onEdit(table)}><Pencil className="mr-2 h-4 w-4" />Chỉnh sửa</DropdownMenuItem>
               <DropdownMenuItem onClick={() => onDownloadQR(table)}><Download className="mr-2 h-4 w-4" />Tải QR Code</DropdownMenuItem>
               <DropdownMenuItem onClick={() => onStatusChange(table, "available")}>Đánh dấu trống</DropdownMenuItem>

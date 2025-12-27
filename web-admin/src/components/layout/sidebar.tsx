@@ -4,6 +4,7 @@
 
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -52,8 +53,27 @@ export function Sidebar() {
   const pathname = usePathname();
   const { isCollapsed, toggleCollapse } = useSidebarStore();
   const { hasAnyRole } = useAuth();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const filteredItems = navItems.filter(item => hasAnyRole(item.roles));
+
+  // Prevent hydration mismatch
+  if (!mounted) {
+    return (
+      <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r bg-background">
+        <div className="flex h-16 items-center justify-between border-b px-4">
+          <Link href="/" className="flex items-center gap-2">
+            <img src="/logo.jpg" alt="QRDatMon" className="h-8 w-8 rounded-md object-cover" />
+            <span className="text-xl font-bold text-primary">QRDatMon</span>
+          </Link>
+        </div>
+      </aside>
+    );
+  }
 
   return (
     <aside
