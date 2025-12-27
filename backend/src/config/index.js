@@ -79,6 +79,11 @@ const config = {
     template: process.env.VIETQR_TEMPLATE || "compact2",
   },
 
+  // Customer App configuration (for QR code generation)
+  customerApp: {
+    url: process.env.CUSTOMER_APP_URL || "http://localhost:3001",
+  },
+
   // Restaurant settings defaults
   restaurant: {
     name: process.env.RESTAURANT_NAME || "QR Đặt Món",

@@ -119,7 +119,10 @@ private fun AppHeader() {
                         Image(
                             painter = painterResource(id = com.qrdatmon.customer.R.drawable.logo),
                             contentDescription = "Logo",
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop
                         )
                     }
                 }

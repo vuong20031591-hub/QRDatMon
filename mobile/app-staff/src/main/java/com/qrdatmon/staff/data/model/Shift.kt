@@ -1,72 +1,67 @@
 package com.qrdatmon.staff.data.model
 
-import com.google.gson.annotations.SerializedName
-import java.util.Date
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class Shift(
-    @SerializedName("_id")
+    @SerialName("_id")
     val id: String,
     
-    @SerializedName("staff")
+    @SerialName("staff")
     val staffId: String,
     
-    @SerializedName("shiftType")
-    val shiftType: ShiftType,
+    @SerialName("shiftType")
+    val shiftType: String,
     
-    @SerializedName("workDate")
+    @SerialName("workDate")
     val workDate: String,
     
-    @SerializedName("startTime")
-    val startTime: String?,
+    @SerialName("startTime")
+    val startTime: String? = null,
     
-    @SerializedName("endTime")
-    val endTime: String?,
+    @SerialName("endTime")
+    val endTime: String? = null,
     
-    @SerializedName("checkInAt")
-    val checkInAt: String?,
+    @SerialName("checkInAt")
+    val checkInAt: String? = null,
     
-    @SerializedName("checkOutAt")
-    val checkOutAt: String?,
+    @SerialName("checkOutAt")
+    val checkOutAt: String? = null,
     
-    @SerializedName("note")
-    val note: String?,
+    @SerialName("note")
+    val note: String? = null,
     
-    @SerializedName("createdAt")
-    val createdAt: String?,
+    @SerialName("createdAt")
+    val createdAt: String? = null,
     
-    @SerializedName("updatedAt")
-    val updatedAt: String?
+    @SerialName("updatedAt")
+    val updatedAt: String? = null
 )
 
-enum class ShiftType {
-    @SerializedName("morning")
-    MORNING,
-    
-    @SerializedName("afternoon")
-    AFTERNOON,
-    
-    @SerializedName("evening")
-    EVENING
-}
-
+@Serializable
 data class ClockInRequest(
-    val shiftType: String,
+    val shiftType: String? = null,
     val note: String? = null
 )
 
+@Serializable
 data class ClockOutRequest(
     val note: String? = null
 )
 
+@Serializable
 data class ShiftResponse(
     val shift: Shift
 )
 
+@Serializable
 data class ShiftsResponse(
     val shifts: List<Shift>,
     val pagination: Pagination
 )
 
+@Serializable
 data class Pagination(
     val page: Int,
     val limit: Int,

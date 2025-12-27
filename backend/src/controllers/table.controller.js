@@ -117,9 +117,11 @@ const updateTableStatus = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
 
-  const table = await tableService.updateTableStatus(id, status);
+  console.log('Update table status request:', { id, status, body: req.body, params: req.params });
 
-  return ok(res, { table }, 'Table status updated successfully');
+  const tableData = await tableService.updateTableStatus(id, status);
+
+  return ok(res, tableData, 'Table status updated successfully');
 });
 
 /**
@@ -234,6 +236,52 @@ const transferToTable = asyncHandler(async (req, res) => {
   return ok(res, result, 'Transferred to table successfully');
 });
 
+/**
+ * Transfer bill between tables (Staff only)
+ * POST /api/tables/:id/transfer-bill
+ */
+const transferBillBetweenTables = asyncHandler(async (req, res) => {
+  const { id: fromTableId } = req.params;
+  const { targetTableId } = req.body;
+
+  const result = await tableService.transferBillBetweenTables(fromTableId, targetTableId);
+
+  return ok(res, result, 'Bill transferred successfully');
+});
+
+/**
+ * Verify QR token
+ * GET /api/tables/verify-qr/:qrToken
+ * Requirements: 6.2
+ */
+const verifyQRToken = asyncHandler(async (req, res) => {
+  const { qrToken } = req.params;
+
+  const tableInfo = await tableService.verifyQRToken(qrToken);
+
+  return ok(res, tableInfo, 'QR token verified successfully');
+});
+
+/**
+ * Join table by QR token with hybrid mode support
+ * POST /api/tables/join-by-qr
+ * Requirements: 6.1
+ */
+const joinTableByQR = asyncHandler(async (req, res) => {
+  const { qrToken, confirmed } = req.body;
+  const userId = req.user._id;
+
+  const result = await tableService.joinTableByQR(qrToken, userId, confirmed);
+
+  // If needsConfirmation, return 200 with confirmation request
+  if (result.needsConfirmation) {
+    return ok(res, result, result.message);
+  }
+
+  // Otherwise, return success
+  return ok(res, result, result.message);
+});
+
 module.exports = {
   getTables,
   getTableMap,
@@ -251,5 +299,9 @@ module.exports = {
   getTableUsers,
   getTableCombinedBill,
   canJoinTable,
-  transferToTable
+  transferToTable,
+  transferBillBetweenTables,
+  // QR scanning endpoints
+  verifyQRToken,
+  joinTableByQR
 };

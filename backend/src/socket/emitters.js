@@ -164,16 +164,20 @@ const emitOrderCancelled = (data) => {
  */
 const emitTableStatusChanged = (table) => {
   safeEmit((io) => {
-    io.to('staff').emit('table:status-changed', {
+    const eventData = {
       type: 'TABLE_STATUS_CHANGED',
       data: {
         tableId: table._id || table.id,
         tableNumber: table.tableNumber,
         status: table.status,
-        area: table.area
+        area: table.area?._id || table.area
       },
       timestamp: new Date().toISOString()
-    });
+    };
+    
+    console.log('[SOCKET] Emitting table:status-changed to staff room:', eventData);
+    
+    io.to('staff').emit('table:status-changed', eventData);
   });
 };
 
@@ -183,11 +187,17 @@ const emitTableStatusChanged = (table) => {
  */
 const emitUserJoinedTable = (data) => {
   safeEmit((io) => {
-    io.to(`table:${data.tableId}`).emit('table:user-joined', {
+    const event = {
       type: 'USER_JOINED_TABLE',
       data,
       timestamp: new Date().toISOString()
-    });
+    };
+    
+    // Notify table room
+    io.to(`table:${data.tableId}`).emit('table:user-joined', event);
+    
+    // Notify staff room for real-time updates on web admin
+    io.to('staff').emit('table:user-joined', event);
   });
 };
 
@@ -197,11 +207,17 @@ const emitUserJoinedTable = (data) => {
  */
 const emitUserLeftTable = (data) => {
   safeEmit((io) => {
-    io.to(`table:${data.tableId}`).emit('table:user-left', {
+    const event = {
       type: 'USER_LEFT_TABLE',
       data,
       timestamp: new Date().toISOString()
-    });
+    };
+    
+    // Notify table room
+    io.to(`table:${data.tableId}`).emit('table:user-left', event);
+    
+    // Notify staff room for real-time updates on web admin
+    io.to('staff').emit('table:user-left', event);
   });
 };
 

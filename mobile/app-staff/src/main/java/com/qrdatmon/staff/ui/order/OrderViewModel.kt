@@ -13,7 +13,10 @@ import javax.inject.Inject
 data class OrderListUiState(
     val isLoading: Boolean = false,
     val orders: List<OrderItem> = emptyList(),
-    val errorMessage: String = ""
+    val errorMessage: String = "",
+    val isConfirming: Boolean = false,
+    val isCancelling: Boolean = false,
+    val actionSuccess: Boolean = false
 )
 
 @HiltViewModel
@@ -39,17 +42,17 @@ class OrderViewModel @Inject constructor(
                 val response = orderApi.getOrders(status = status)
 
                 if (response.success && response.data != null) {
-                    val orderList = response.data!!
-                    val orders = orderList.map { orderDto ->
+                    val orderListResponse = response.data!!
+                    val orders = orderListResponse.orders.map { orderDto ->
                         OrderItem(
                             id = orderDto.id,
                             orderNumber = "#${orderDto.orderNumber}",
                             tableNumber = orderDto.bill?.tableNumber ?: "N/A",
-                            items = orderDto.items.map { it.itemName },
+                            items = orderDto.items.map { "${it.itemName} x${it.quantity}" },
                             totalAmount = orderDto.totalAmount,
                             status = mapOrderStatus(orderDto.status),
                             createdAt = formatTime(orderDto.createdAt),
-                            customerName = orderDto.user?.name
+                            customerName = orderDto.user?.name ?: "Guest ${orderDto.bill?.billNumber?.takeLast(6) ?: ""}"
                         )
                     }
 
@@ -92,5 +95,72 @@ class OrderViewModel @Inject constructor(
         } catch (e: Exception) {
             timestamp
         }
+    }
+
+    fun confirmOrder(orderId: String) {
+        viewModelScope.launch {
+            try {
+                _uiState.value = _uiState.value.copy(isConfirming = true)
+
+                val response = orderApi.confirmOrder(orderId)
+
+                if (response.success) {
+                    _uiState.value = _uiState.value.copy(
+                        isConfirming = false,
+                        actionSuccess = true
+                    )
+                    // Reload orders to get updated list
+                    loadOrders()
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        isConfirming = false,
+                        errorMessage = response.message ?: "Failed to confirm order"
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isConfirming = false,
+                    errorMessage = e.message ?: "An error occurred"
+                )
+            }
+        }
+    }
+
+    fun cancelOrder(orderId: String, reason: String = "Từ chối bởi nhân viên") {
+        viewModelScope.launch {
+            try {
+                _uiState.value = _uiState.value.copy(isCancelling = true)
+
+                val request = com.qrdatmon.core.network.dto.order.CancelOrderRequest(reason = reason)
+                val response = orderApi.cancelOrder(orderId, request)
+
+                if (response.success) {
+                    _uiState.value = _uiState.value.copy(
+                        isCancelling = false,
+                        actionSuccess = true
+                    )
+                    // Reload orders to get updated list
+                    loadOrders()
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        isCancelling = false,
+                        errorMessage = response.message ?: "Failed to cancel order"
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isCancelling = false,
+                    errorMessage = e.message ?: "An error occurred"
+                )
+            }
+        }
+    }
+
+    fun resetActionSuccess() {
+        _uiState.value = _uiState.value.copy(actionSuccess = false)
+    }
+
+    fun clearError() {
+        _uiState.value = _uiState.value.copy(errorMessage = "")
     }
 }

@@ -53,6 +53,11 @@ fun TableListScreen(
     var selectedStatuses by remember { mutableStateOf(setOf<TableStatus>()) }
     
     val uiState by viewModel.uiState.collectAsState()
+    
+    // Load tables when screen is first displayed
+    LaunchedEffect(Unit) {
+        viewModel.loadTables()
+    }
 
     // Get unique areas from tables
     val areas = remember(uiState.tables) {

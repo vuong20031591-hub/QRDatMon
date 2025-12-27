@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -48,6 +49,12 @@ fun MenuItemDetailScreen(
     var note by remember { mutableStateOf("") }
     
     val uiState by viewModel.uiState.collectAsState()
+    
+    // Track favorite state
+    val favorites by com.qrdatmon.customer.data.FavoritesManager.favorites.collectAsState()
+    val isFavorite = remember(favorites, itemId) {
+        com.qrdatmon.customer.data.FavoritesManager.isFavorite(itemId)
+    }
     
     // Load menu item khi screen được mở
     LaunchedEffect(itemId) {
@@ -263,11 +270,23 @@ fun MenuItemDetailScreen(
                             )
 
                             IconButton(
-                                onClick = { /* TODO: Favorite */ },
+                                onClick = {
+                                    uiState.menuItem?.let { item ->
+                                        val favoriteItem = com.qrdatmon.customer.data.FavoriteItem(
+                                            id = item.id,
+                                            name = item.name,
+                                            description = item.description ?: "",
+                                            price = item.price.toInt(),
+                                            imageUrl = item.imageUrl ?: "",
+                                            categoryId = item.category?.id
+                                        )
+                                        com.qrdatmon.customer.data.FavoritesManager.toggleFavorite(favoriteItem)
+                                    }
+                                },
                                 modifier = Modifier.size(32.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Outlined.FavoriteBorder,
+                                    imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                                     contentDescription = "Favorite",
                                     tint = Color(0xFFFF6F3C)
                                 )
@@ -459,7 +478,8 @@ fun MenuItemDetailScreen(
                             toppingPrice = 0, // No toppings
                             quantity = quantity,
                             imageUrl = uiState.imageUrl ?: "",
-                            note = note.ifBlank { null }
+                            note = note.ifBlank { null },
+                            categoryId = item.category?.id
                         )
                         
                         com.qrdatmon.customer.data.CartManager.addItem(cartItem)

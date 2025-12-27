@@ -9,14 +9,14 @@ class AttendanceRepository(
     private val apiService: AttendanceApiService
 ) {
     
-    suspend fun clockIn(shiftType: String, note: String? = null): Result<Shift> {
+    suspend fun clockIn(shiftType: String? = null, note: String? = null): Result<Shift> {
         return withContext(Dispatchers.IO) {
             try {
                 val response = apiService.clockIn(ClockInRequest(shiftType, note))
                 if (response.isSuccessful && response.body() != null) {
                     Result.success(response.body()!!.shift)
                 } else {
-                    Result.failure(Exception("Clock in failed: ${response.message()}"))
+                    Result.failure(Exception("Clock in failed: ${response.code()} - ${response.message()}"))
                 }
             } catch (e: Exception) {
                 Result.failure(e)

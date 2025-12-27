@@ -103,19 +103,14 @@ private fun AppHeader() {
                         .padding(2.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Box(
+                    Image(
+                        painter = painterResource(id = R.drawable.logo),
+                        contentDescription = "Logo",
                         modifier = Modifier
                             .size(28.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF4CAF50)), // Green
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.logo),
-                            contentDescription = "Logo",
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
                 }
 
                 // App Name and Subtitle

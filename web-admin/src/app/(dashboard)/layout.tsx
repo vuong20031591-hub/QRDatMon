@@ -4,6 +4,7 @@
 
 'use client';
 
+import { useEffect, useState } from 'react';
 import { ThemeProvider } from 'next-themes';
 import { Toaster } from 'sonner';
 import { Sidebar } from '@/components/layout/sidebar';
@@ -17,9 +18,19 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { isCollapsed } = useSidebarStore();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!mounted) {
+    return null;
+  }
 
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <div className="min-h-screen bg-background">
         <Sidebar />
         <Header />

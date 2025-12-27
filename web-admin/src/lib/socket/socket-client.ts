@@ -98,6 +98,9 @@ export const SOCKET_EVENTS = {
   
   // Table events
   TABLE_STATUS_UPDATED: "table:statusUpdated",
+  TABLE_STATUS_CHANGED: "table:status-changed",
+  TABLE_USER_JOINED: "table:user-joined",
+  TABLE_USER_LEFT: "table:user-left",
   
   // Room events
   JOIN_STAFF: "join:staff",

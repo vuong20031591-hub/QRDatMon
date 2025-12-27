@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -36,10 +37,41 @@ fun TableCodeInputScreen(
     viewModel: TableCodeInputViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val joinTableResult by viewModel.joinTableResult.collectAsState()
     var selectedTable by remember { mutableStateOf<TableItem?>(null) }
     var showErrorDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
+    var isJoiningTable by remember { mutableStateOf(false) }
     val isCodeValid = selectedTable != null
+    
+    // Handle join table result
+    LaunchedEffect(joinTableResult) {
+        joinTableResult?.let { result ->
+            result.onSuccess {
+                // Join successful, save table info and navigate
+                if (selectedTable != null) {
+                    com.qrdatmon.customer.data.TableManager.setTable(
+                        com.qrdatmon.customer.data.SelectedTable(
+                            id = selectedTable!!.id,
+                            tableNumber = selectedTable!!.tableNumber,
+                            areaName = selectedTable!!.areaName,
+                            displayName = selectedTable!!.displayName
+                        )
+                    )
+                    viewModel.resetJoinTableResult()
+                    isJoiningTable = false
+                    onConfirmClick(selectedTable!!.id)
+                }
+            }
+            result.onFailure { error ->
+                // Show error
+                errorMessage = error.message ?: "Không thể kết nối đến bàn. Vui lòng thử lại."
+                showErrorDialog = true
+                isJoiningTable = false
+                viewModel.resetJoinTableResult()
+            }
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -92,7 +124,7 @@ fun TableCodeInputScreen(
                 // Confirm Button
                 Button(
                     onClick = { 
-                        if (isCodeValid && selectedTable != null) {
+                        if (isCodeValid && selectedTable != null && !isJoiningTable) {
                             // Validate table status
                             val validationError = viewModel.validateTableStatus(selectedTable!!.status)
                             if (validationError != null) {
@@ -100,16 +132,9 @@ fun TableCodeInputScreen(
                                 errorMessage = validationError
                                 showErrorDialog = true
                             } else {
-                                // Save table info to TableManager
-                                com.qrdatmon.customer.data.TableManager.setTable(
-                                    com.qrdatmon.customer.data.SelectedTable(
-                                        id = selectedTable!!.id,
-                                        tableNumber = selectedTable!!.tableNumber,
-                                        areaName = selectedTable!!.areaName,
-                                        displayName = selectedTable!!.displayName
-                                    )
-                                )
-                                onConfirmClick(selectedTable!!.id)
+                                // Join table via API using qrToken
+                                isJoiningTable = true
+                                viewModel.joinTable(selectedTable!!.qrToken)
                             }
                         }
                     },
@@ -118,17 +143,25 @@ fun TableCodeInputScreen(
                         .height(52.dp),
                     shape = RoundedCornerShape(24.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isCodeValid) Color(0xFFFF6F3C) else Color(0x66FF6F3C),
+                        containerColor = if (isCodeValid && !isJoiningTable) Color(0xFFFF6F3C) else Color(0x66FF6F3C),
                         disabledContainerColor = Color(0x66FF6F3C)
                     ),
-                    enabled = isCodeValid
+                    enabled = isCodeValid && !isJoiningTable
                 ) {
-                    Text(
-                        text = "Xác nhận",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color.White
-                    )
+                    if (isJoiningTable) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(
+                            text = "Xác nhận",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.White
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -241,19 +274,14 @@ private fun TableCodeAppBranding() {
                 .padding(2.dp),
             contentAlignment = Alignment.Center
         ) {
-            Box(
+            Image(
+                painter = painterResource(id = com.qrdatmon.customer.R.drawable.logo),
+                contentDescription = "Logo",
                 modifier = Modifier
                     .size(28.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFFF6F3C)),
-                contentAlignment = Alignment.Center
-            ) {
-                Image(
-                    painter = painterResource(id = com.qrdatmon.customer.R.drawable.logo),
-                    contentDescription = "Logo",
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
         }
 
         // App Name and Subtitle

@@ -56,10 +56,11 @@ fun MenuScreen(
     onNavigateToOrderStatus: () -> Unit = {},
     onViewAllPromos: () -> Unit = {},
     onMenuItemClick: (String) -> Unit = {},
+    onNavigateToLogin: () -> Unit = {},
+    onProfileClick: () -> Unit = {},
+    onFavoritesClick: () -> Unit = {},
     viewModel: MenuViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
-    var cartItemCount by remember { mutableStateOf(3) }
-    var totalAmount by remember { mutableStateOf(188000) }
     var selectedTab by remember { mutableStateOf("menu") }
 
     val uiState by viewModel.uiState.collectAsState()
@@ -127,8 +128,10 @@ fun MenuScreen(
             // Header
             MenuHeader(
                 tableDisplayName = tableDisplayName,
-                cartItemCount = cartItemCount,
-                onCartClick = onCartClick
+                onCartClick = onCartClick,
+                onProfileClick = onProfileClick,
+                onFavoritesClick = onFavoritesClick,
+                onScanQrClick = onBackClick // Navigate back to QR scan
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -243,56 +246,87 @@ fun MenuScreen(
 @Composable
 private fun MenuHeader(
     tableDisplayName: String,
-    cartItemCount: Int,
-    onCartClick: () -> Unit
+    onCartClick: () -> Unit,
+    onProfileClick: () -> Unit,
+    onFavoritesClick: () -> Unit,
+    onScanQrClick: () -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 10.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Nhà hàng Hương Vị Việt",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF222222),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Box(
-                modifier = Modifier
-                    .background(Color(0xFFFFE4D6), RoundedCornerShape(999.dp))
-                    .padding(horizontal = 8.dp, vertical = 2.dp)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Text(
-                    text = "$tableDisplayName • 2 người",
-                    fontSize = 13.sp,
+                    text = "Nhà hàng Hương Vị Việt",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF222222),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Box(
+                    modifier = Modifier
+                        .background(Color(0xFFFFE4D6), RoundedCornerShape(999.dp))
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = tableDisplayName,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFFFF6F3C)
+                    )
+                }
+            }
+
+            // More Options Menu
+            com.qrdatmon.customer.ui.components.MoreOptionsButton(
+                onProfileClick = onProfileClick,
+                onFavoritesClick = onFavoritesClick
+            )
+        }
+        
+        // Scan QR to Transfer Table Button
+        OutlinedButton(
+            onClick = onScanQrClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(40.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = Color(0xFFFF6F3C)
+            ),
+            border = androidx.compose.foundation.BorderStroke(
+                width = 1.dp,
+                color = Color(0xFFFF6F3C)
+            )
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    painter = painterResource(id = android.R.drawable.ic_menu_camera),
+                    contentDescription = "Scan QR",
+                    modifier = Modifier.size(18.dp),
+                    tint = Color(0xFFFF6F3C)
+                )
+                Text(
+                    text = "Quét QR chuyển bàn",
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = Color(0xFFFF6F3C)
                 )
             }
-        }
-
-        // Notification Icon
-        Box(
-            modifier = Modifier
-                .size(32.dp)
-                .background(Color(0xFFF5F5F5), CircleShape)
-                .clickable { /* TODO */ },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Notifications,
-                contentDescription = "Notifications",
-                tint = Color(0xFF222222),
-                modifier = Modifier.size(20.dp)
-            )
         }
     }
 }

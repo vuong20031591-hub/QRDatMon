@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -53,13 +54,67 @@ fun TableDetailScreen(
     table: Table,
     onBackClick: () -> Unit,
     onCheckout: () -> Unit,
-    viewModel: TableDetailViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    viewModel: TableDetailViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
+    tableViewModel: TableViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val tableListState by tableViewModel.uiState.collectAsState()
+    
+    var showUpdateStatusDialog by remember { mutableStateOf(false) }
+    var showTransferDialog by remember { mutableStateOf(false) }
     
     // Load table detail when screen opens
     LaunchedEffect(table.id) {
         viewModel.loadTableDetail(table.id)
+        tableViewModel.loadTables() // Load all tables for transfer
+    }
+    
+    val context = androidx.compose.ui.platform.LocalContext.current
+    
+    // Handle update success
+    LaunchedEffect(uiState.updateSuccess) {
+        if (uiState.updateSuccess) {
+            showUpdateStatusDialog = false
+            android.widget.Toast.makeText(
+                context,
+                "Cập nhật trạng thái bàn thành công",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+            viewModel.resetUpdateSuccess()
+            // Reload table list before navigating back
+            tableViewModel.loadTables()
+            // Navigate back to table list
+            onBackClick()
+        }
+    }
+    
+    // Handle update error
+    LaunchedEffect(uiState.errorMessage) {
+        if (uiState.errorMessage.isNotEmpty() && !uiState.isLoading && !uiState.isUpdatingStatus && !uiState.isTransferring) {
+            android.util.Log.e("TableDetailScreen", "Error: ${uiState.errorMessage}")
+            android.widget.Toast.makeText(
+                context,
+                "Lỗi: ${uiState.errorMessage}",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+    
+    // Handle transfer success
+    LaunchedEffect(uiState.transferSuccess) {
+        if (uiState.transferSuccess) {
+            showTransferDialog = false
+            android.widget.Toast.makeText(
+                context,
+                "Chuyển bàn thành công",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+            viewModel.resetTransferSuccess()
+            // Reload table list before navigating back
+            tableViewModel.loadTables()
+            // Navigate back after successful transfer
+            onBackClick()
+        }
     }
     
     val tableDetail = uiState.tableDetail
@@ -108,7 +163,7 @@ fun TableDetailScreen(
                     )
                 }
             }
-            uiState.errorMessage.isNotEmpty() -> {
+            uiState.errorMessage.isNotEmpty() && !uiState.updateSuccess && !uiState.transferSuccess -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -155,7 +210,7 @@ fun TableDetailScreen(
                 }
             }
             tableDetail.table.status == TableStatus.AVAILABLE -> {
-                // Empty state
+                // Empty state with update status button
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -163,7 +218,8 @@ fun TableDetailScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(horizontal = 32.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.EventAvailable,
@@ -184,6 +240,31 @@ fun TableDetailScreen(
                             color = Color(0xFF666666),
                             modifier = Modifier.padding(top = 4.dp)
                         )
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
+                        // Update Status Button
+                        OutlinedButton(
+                            onClick = { showUpdateStatusDialog = true },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = Color(0xFF4CAF50)
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = null
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Cập nhật trạng thái",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                 }
             }
@@ -295,6 +376,53 @@ fun TableDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+                        // Update Status button - always show
+                        OutlinedButton(
+                            onClick = { showUpdateStatusDialog = true },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = Color(0xFF4CAF50)
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = null
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Cập nhật trạng thái",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+
+                        // Transfer Table Button - always show
+                        OutlinedButton(
+                            onClick = { showTransferDialog = true },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = Color(0xFF2196F3)
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SwapHoriz,
+                                contentDescription = null
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Chuyển bàn",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+
+                        // Checkout Button - always show
                         Button(
                             onClick = onCheckout,
                             modifier = Modifier
@@ -317,6 +445,7 @@ fun TableDetailScreen(
                             )
                         }
 
+                        // Add more items Button - always show
                         OutlinedButton(
                             onClick = { /* TODO: Add more items */ },
                             modifier = Modifier
@@ -345,6 +474,31 @@ fun TableDetailScreen(
             }
         }
         }
+    }
+    
+    // Update Status Dialog
+    if (showUpdateStatusDialog) {
+        UpdateTableStatusDialog(
+            currentStatus = tableDetail?.table?.status ?: TableStatus.AVAILABLE,
+            isUpdating = uiState.isUpdatingStatus,
+            onDismiss = { showUpdateStatusDialog = false },
+            onConfirm = { newStatus ->
+                viewModel.updateTableStatus(table.id, newStatus)
+            }
+        )
+    }
+    
+    // Transfer Table Dialog
+    if (showTransferDialog) {
+        TransferTableDialog(
+            currentTableId = table.id,
+            availableTables = tableListState.tables,
+            isTransferring = uiState.isTransferring,
+            onDismiss = { showTransferDialog = false },
+            onConfirm = { targetTable ->
+                viewModel.transferTable(table.id, targetTable.id)
+            }
+        )
     }
 }
 

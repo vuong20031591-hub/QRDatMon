@@ -13,9 +13,13 @@ android {
     }
     
     defaultConfig {
-        // TODO: Thay đổi BASE_URL khi deploy production
-        buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:3000/api/\"")
-        buildConfigField("String", "WS_URL", "\"ws://10.0.2.2:3000/\"")
+        // Thay đổi BASE_URL tùy theo môi trường test:
+        // - Emulator: http://10.0.2.2:3000/api/
+        // - Real Device: http://192.168.1.65:3000/api/
+        // - Production: https://api.qrdatmon.com/api/
+        
+        buildConfigField("String", "BASE_URL", "\"http://192.168.1.65:3000/api/\"")
+        buildConfigField("String", "WS_URL", "\"ws://192.168.1.65:3000/\"")
         buildConfigField("String", "API_TIMEOUT", "\"30\"")
     }
 }

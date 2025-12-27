@@ -26,6 +26,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -377,19 +378,14 @@ private fun OtpAppBranding() {
                 .padding(2.dp),
             contentAlignment = Alignment.Center
         ) {
-            Box(
+            Image(
+                painter = painterResource(id = com.qrdatmon.customer.R.drawable.logo),
+                contentDescription = "Logo",
                 modifier = Modifier
                     .size(28.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFFF6F3C)),
-                contentAlignment = Alignment.Center
-            ) {
-                Image(
-                    painter = painterResource(id = com.qrdatmon.customer.R.drawable.logo),
-                    contentDescription = "Logo",
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
         }
 
         // App Name and Subtitle

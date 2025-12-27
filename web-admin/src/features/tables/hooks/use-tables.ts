@@ -31,6 +31,17 @@ export function useTables() {
     }
   }, [])
 
+  // Function to update a specific table in state
+  const updateTableInState = useCallback((tableId: string, updates: Partial<Table>) => {
+    setTables(prevTables => 
+      prevTables.map(table => 
+        table.id === tableId 
+          ? { ...table, ...updates }
+          : table
+      )
+    )
+  }, [])
+
   useEffect(() => { fetchTables() }, [fetchTables])
 
   const createTable = async (data: Partial<Table>) => {
@@ -62,7 +73,7 @@ export function useTables() {
     return response.data
   }
 
-  return { tables, loading, error, fetchTables, createTable, updateTable, deleteTable, updateStatus, generateQR }
+  return { tables, loading, error, fetchTables, updateTableInState, createTable, updateTable, deleteTable, updateStatus, generateQR }
 }
 
 export function useAreas() {

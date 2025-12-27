@@ -274,20 +274,23 @@ const menuSchemas = {
 
 const cartSchemas = {
   // Add item to cart
+  // Supports both old format (menuItem) and mobile format (menuItemId)
   addToCart: Joi.object({
     menuItem: commonSchemas.objectId,
+    menuItemId: commonSchemas.objectId, // Mobile app compatibility
     combo: commonSchemas.objectId,
+    tableId: Joi.string().allow('', null), // Mobile app sends this, allow any string
     quantity: commonSchemas.quantity.required(),
-    note: Joi.string().trim().max(500),
+    note: Joi.string().trim().max(500).allow('', null),
     toppings: Joi.array().items(
       Joi.object({
-        toppingGroupId: commonSchemas.objectId.required(),
+        toppingGroupId: commonSchemas.objectId.allow(null), // Optional for mobile compatibility
         toppingId: commonSchemas.objectId.required(),
         quantity: Joi.number().integer().min(1).max(10).default(1)
       })
-    )
-  }).xor('menuItem', 'combo').messages({
-    'object.xor': 'Either menuItem or combo must be provided, but not both'
+    ).default([])
+  }).or('menuItem', 'menuItemId', 'combo').messages({
+    'object.missing': 'Either menuItem, menuItemId, or combo must be provided'
   }),
 
   // Update cart item
@@ -393,11 +396,44 @@ const paymentSchemas = {
 // ============================================
 
 const tableSchemas = {
-  // Join table by QR token
+  // Join table by QR token (legacy - kept for backward compatibility)
   joinTable: Joi.object({
     qrToken: Joi.string().required().messages({
       'any.required': 'QR token is required'
     })
+  }),
+
+  // Join table by QR token with confirmation support
+  // Requirements: 6.1, 6.5
+  joinByQR: Joi.object({
+    qrToken: Joi.string()
+      .length(32)
+      .pattern(/^[0-9a-f]{32}$/)
+      .required()
+      .messages({
+        'any.required': 'QR token is required',
+        'string.empty': 'QR token cannot be empty',
+        'string.length': 'QR token must be exactly 32 characters',
+        'string.pattern.base': 'QR token must be a valid hexadecimal string'
+      }),
+    confirmed: Joi.boolean().default(false).messages({
+      'boolean.base': 'Confirmed must be a boolean value'
+    })
+  }),
+
+  // Verify QR token (for params validation)
+  // Requirements: 6.1, 6.5
+  verifyQR: Joi.object({
+    qrToken: Joi.string()
+      .length(32)
+      .pattern(/^[0-9a-f]{32}$/)
+      .required()
+      .messages({
+        'any.required': 'QR token is required',
+        'string.empty': 'QR token cannot be empty',
+        'string.length': 'QR token must be exactly 32 characters',
+        'string.pattern.base': 'QR token must be a valid hexadecimal string'
+      })
   }),
 
   // Update table status
